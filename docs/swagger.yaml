@@ -1,0 +1,1309 @@
+openapi: 3.0.3
+info:
+  title: Biidin Admin API API
+  version: "1.0.0"
+  description: |
+    OpenAPI specification for the Biidin Admin API service. Most endpoints require the
+    `X-Secret-Key` header plus the JWT `token` cookie issued by the login endpoint.
+servers:
+  - url: http://localhost:3010
+    description: Local development server
+security:
+  - SecretHeader: []
+tags:
+  - name: Health
+  - name: Lookup
+  - name: Authentication
+  - name: Trades
+  - name: User Exchanges
+  - name: Webhooks
+  - name: Alerts
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: OK
+
+  /api/v1/lookup/exchanges:
+    get:
+      tags: [Lookup]
+      summary: List supported exchanges
+      responses:
+        '200':
+          description: Array of exchanges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Exchange'
+
+  /api/v1/lookup/pairs:
+    get:
+      tags: [Lookup]
+      summary: List supported pairs
+      responses:
+        '200':
+          description: Array of tradable pairs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pair'
+
+  /api/v1/auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthPayload'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '400':
+          description: Invalid payload
+        '500':
+          description: Registration error
+
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Log in and receive JWT cookie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthPayload'
+      responses:
+        '200':
+          description: |-
+            Login succeeded, a JWT cookie named `token` is set, and a status response is returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '400':
+          description: Invalid payload
+        '401':
+          description: Invalid credentials
+
+  /api/v1/logout:
+    get:
+      tags: [Authentication]
+      summary: Clear JWT cookie and log out
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Logged out
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Logged out
+        '401':
+          description: Unauthorized
+
+  /api/v1/me:
+    get:
+      tags: [Authentication]
+      summary: Get current user profile
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized
+    put:
+      tags: [Authentication]
+      summary: Update current user profile
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserPayload'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized
+
+  /api/v1/trades:
+    get:
+      tags: [Trades]
+      summary: List trades for the current user
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      parameters:
+        - in: query
+          name: range
+          schema:
+            type: string
+          description: JSON encoded offset/limit, e.g. "[0, 9]".
+        - in: query
+          name: sort
+          schema:
+            type: string
+          description: JSON encoded sort field and direction, e.g. "[\"id\", \"DESC\"]".
+        - in: query
+          name: filter
+          schema:
+            type: string
+          description: JSON encoded filter map.
+      responses:
+        '200':
+          description: Array of trades
+          headers:
+            X-Total-Count:
+              description: Total number of records
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trade'
+        '401':
+          description: Unauthorized
+    post:
+      tags: [Trades]
+      summary: Create a trade
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TradePayload'
+      responses:
+        '201':
+          description: Trade created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Trade'
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+    delete:
+      tags: [Trades]
+      summary: Delete multiple trades
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: IDs deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: integer
+        '400':
+          description: Invalid request
+
+  /api/v1/trades/{id}:
+    get:
+      tags: [Trades]
+      summary: Get a trade by ID
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Trade details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TradeResponse'
+        '400':
+          description: Invalid ID
+        '404':
+          description: Trade not found
+    put:
+      tags: [Trades]
+      summary: Update a trade
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TradePayload'
+      responses:
+        '200':
+          description: Updated trade
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Trade'
+        '400':
+          description: Validation error
+        '404':
+          description: Trade not found
+    delete:
+      tags: [Trades]
+      summary: Delete a trade by ID
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Trade deleted
+        '404':
+          description: Trade not found
+
+  /api/v1/user-exchanges:
+    post:
+      tags: [User Exchanges]
+      summary: Create or update an exchange credential for the user
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertUserExchangePayload'
+      responses:
+        '200':
+          description: Upserted exchange settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserExchangeResponse'
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+
+  /api/v1/user-exchanges/forms:
+    get:
+      tags: [User Exchanges]
+      summary: List exchanges available for forms
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Exchanges configured by the user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserExchangeResponse'
+        '401':
+          description: Unauthorized
+
+  /api/v1/user-exchanges/{exchangeID}/test:
+    post:
+      tags: [User Exchanges]
+      summary: Test MEXC connection for a stored exchange
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      parameters:
+        - in: path
+          name: exchangeID
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestConnectionPayload'
+      responses:
+        '200':
+          description: Connection test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '400':
+          description: Invalid payload
+        '401':
+          description: Unauthorized
+        '404':
+          description: Exchange not found
+
+  /api/v1/user-exchanges/{exchangeID}:
+    delete:
+      tags: [User Exchanges]
+      summary: Delete stored credentials for an exchange
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      parameters:
+        - in: path
+          name: exchangeID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+
+  /api/v1/webhooks:
+    post:
+      tags: [Webhooks]
+      summary: Create a webhook configuration
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebhookPayload'
+      responses:
+        '201':
+          description: Webhook created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhook:
+                    $ref: '#/components/schemas/Webhook'
+                  url:
+                    type: string
+                  token:
+                    type: string
+        '400':
+          description: Invalid payload
+    get:
+      tags: [Webhooks]
+      summary: List webhooks for current user
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      parameters:
+        - in: query
+          name: range
+          schema:
+            type: string
+        - in: query
+          name: sort
+          schema:
+            type: string
+        - in: query
+          name: filter
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Array of webhooks
+          headers:
+            X-Total-Count:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Webhook'
+        '401':
+          description: Unauthorized
+
+  /api/v1/webhooks/{id}:
+    put:
+      tags: [Webhooks]
+      summary: Update a webhook
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWebhookPayload'
+      responses:
+        '200':
+          description: Updated webhook
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Webhook'
+        '404':
+          description: Not found
+    delete:
+      tags: [Webhooks]
+      summary: Delete a webhook
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          description: Not found
+
+  /api/v1/webhook-alerts:
+    get:
+      tags: [Alerts]
+      summary: List webhook alerts for current user
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      parameters:
+        - in: query
+          name: range
+          schema:
+            type: string
+        - in: query
+          name: sort
+          schema:
+            type: string
+        - in: query
+          name: filter
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Array of webhook alerts
+          headers:
+            X-Total-Count:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WebhookAlert'
+        '401':
+          description: Unauthorized
+
+  /trading/webhook/{token}:
+    post:
+      tags: [Alerts]
+      summary: Receive an external trading alert
+      description: Public endpoint that validates the webhook token and stores the alert.
+      security: []
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertPayload'
+      responses:
+        '200':
+          description: Alert accepted
+        '400':
+          description: Invalid payload
+        '404':
+          description: Webhook not found
+
+components:
+  securitySchemes:
+    SecretHeader:
+      type: apiKey
+      in: header
+      name: X-Secret-Key
+      description: Shared secret required for all private endpoints.
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+      description: JWT issued by the login endpoint.
+  schemas:
+    AuthPayload:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        bio:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+        phone_number:
+          type: string
+        timezone:
+          type: string
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        bio:
+          type: string
+        avatar_url:
+          type: string
+        last_login:
+          type: string
+          format: date-time
+        last_seen:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    UpdateUserPayload:
+      type: object
+      properties:
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        bio:
+          type: string
+        avatar_url:
+          type: string
+    Trade:
+      type: object
+      properties:
+        id:
+          type: integer
+        exchange:
+          type: string
+          nullable: true
+        symbol:
+          type: string
+        trade_date:
+          type: string
+          format: date-time
+        trade_time:
+          type: string
+        margin_mode:
+          type: string
+        leverage:
+          type: number
+          format: float
+          nullable: true
+        asset_mode:
+          type: string
+        order_type:
+          type: string
+        quantity:
+          type: number
+          format: float
+        stop_price:
+          type: number
+          format: float
+        price:
+          type: number
+          format: float
+        is_take_profit:
+          type: boolean
+        is_reduce_only:
+          type: boolean
+        stop_loss:
+          type: number
+          format: float
+          nullable: true
+        take_profit:
+          type: number
+          format: float
+          nullable: true
+        is_short:
+          type: boolean
+        is_long:
+          type: boolean
+        type:
+          type: string
+        contract_type:
+          type: string
+          nullable: true
+        entry_price:
+          type: number
+          format: float
+        exit_price:
+          type: number
+          format: float
+        fee:
+          type: number
+          format: float
+          nullable: true
+        indicators:
+          type: string
+          nullable: true
+        sentiment:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        user_id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    TradePayload:
+      type: object
+      required: [symbol, tradeDate, tradeTime, marginMode, assetMode, orderType, price, size, stopPrice, takeProfitEnabled, reduceOnly, isShort, isLong, contractType, entryPrice, exitPrice]
+      properties:
+        exchange:
+          type: string
+          nullable: true
+        symbol:
+          type: string
+        tradeDate:
+          type: string
+          description: ISO timestamp string
+        tradeTime:
+          type: string
+          description: HH:mm time string
+        marginMode:
+          type: string
+        leverage:
+          type: number
+          format: float
+          nullable: true
+        assetMode:
+          type: string
+        orderType:
+          type: string
+        price:
+          type: number
+          format: float
+        size:
+          type: number
+          format: float
+          description: Quantity
+        stopPrice:
+          type: number
+          format: float
+        takeProfitEnabled:
+          type: boolean
+        reduceOnly:
+          type: boolean
+        takeProfit:
+          type: number
+          format: float
+          nullable: true
+        stopLoss:
+          type: number
+          format: float
+          nullable: true
+        isShort:
+          type: boolean
+        isLong:
+          type: boolean
+        notes:
+          type: string
+          nullable: true
+        contractType:
+          type: string
+          nullable: true
+        type:
+          type: string
+        entryPrice:
+          type: number
+          format: float
+        exitPrice:
+          type: number
+          format: float
+        fee:
+          type: number
+          format: float
+          nullable: true
+        indicators:
+          type: string
+          nullable: true
+        sentiment:
+          type: string
+          nullable: true
+    TradeResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        symbol:
+          type: string
+        trade_date:
+          type: string
+        type:
+          type: string
+        leverage:
+          type: number
+          format: float
+          nullable: true
+        entry_price:
+          type: number
+          format: float
+        exit_price:
+          type: number
+          format: float
+        fee:
+          type: number
+          format: float
+          nullable: true
+        indicators:
+          type: string
+          nullable: true
+        sentiment:
+          type: string
+          nullable: true
+        stop_loss:
+          type: number
+          format: float
+          nullable: true
+        take_profit:
+          type: number
+          format: float
+          nullable: true
+        exchange:
+          type: string
+          nullable: true
+    UpsertUserExchangePayload:
+      type: object
+      required: [exchangeId]
+      properties:
+        exchangeId:
+          type: integer
+        apiKey:
+          type: string
+        apiSecret:
+          type: string
+        apiPassphrase:
+          type: string
+        showInForms:
+          type: boolean
+    UserExchangeResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        exchangeId:
+          type: integer
+        exchangeName:
+          type: string
+        showInForms:
+          type: boolean
+        hasApiKey:
+          type: boolean
+        hasApiSecret:
+          type: boolean
+        hasApiPassphrase:
+          type: boolean
+    TestConnectionPayload:
+      type: object
+      properties:
+        apiKey:
+          type: string
+        apiSecret:
+          type: string
+        apiPassphrase:
+          type: string
+    TestConnectionResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+    CreateWebhookPayload:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        tickers:
+          type: string
+        active:
+          type: boolean
+    UpdateWebhookPayload:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        tickers:
+          type: string
+        active:
+          type: boolean
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        style:
+          type: string
+        type:
+          type: string
+        tickers:
+          type: string
+        token:
+          type: string
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AlertPayload:
+      type: object
+      required: [ticker, action, quantity, price]
+      properties:
+        ticker:
+          type: string
+        action:
+          type: string
+        sentiment:
+          type: string
+        quantity:
+          type: number
+          format: float
+        price:
+          type: number
+          format: float
+        time:
+          type: string
+          format: date-time
+        interval:
+          type: string
+        marketPosition:
+          type: string
+        prevMarketPosition:
+          type: string
+        marketPositionSize:
+          type: number
+          format: float
+        prevMarketPositionSize:
+          type: number
+          format: float
+        alert_time:
+          type: string
+          format: date-time
+    WebhookAlert:
+      type: object
+      properties:
+        id:
+          type: integer
+        webhook_id:
+          type: integer
+        user_id:
+          type: integer
+        ticker:
+          type: string
+        action:
+          type: string
+        sentiment:
+          type: string
+        quantity:
+          type: number
+          format: float
+        price:
+          type: number
+          format: float
+        interval:
+          type: string
+        marketPosition:
+          type: string
+        prevMarketPosition:
+          type: string
+        marketPositionSize:
+          type: number
+          format: float
+        prevMarketPositionSize:
+          type: number
+          format: float
+        time:
+          type: string
+          format: date-time
+        alert_time:
+          type: string
+          format: date-time
+        received_at:
+          type: string
+          format: date-time
+    Strategy:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        webhook_id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        active:
+          type: boolean
+        apply_on_alert:
+          type: boolean
+          description: Execute the strategy automatically when a webhook alert is received.
+        dry_run:
+          type: boolean
+          description: If true, orders are built but not dispatched to an exchange.
+        alert_filters:
+          type: object
+          additionalProperties: true
+        max_concurrent:
+          type: integer
+        close_previous:
+          type: boolean
+          description: Close an existing position when opening a new one.
+        allow_hedge:
+          type: boolean
+          description: Allow opening hedge positions instead of closing the previous one.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_executed_at:
+          type: string
+          format: date-time
+          nullable: true
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/StrategyAction'
+    StrategyAction:
+      type: object
+      properties:
+        id:
+          type: integer
+        strategy_id:
+          type: integer
+        exchange_id:
+          type: integer
+        user_exchange_id:
+          type: integer
+          nullable: true
+        name:
+          type: string
+        action_type:
+          type: string
+        order_type:
+          type: string
+        market_type:
+          type: string
+          description: Market segment such as spot, margin, or futures.
+        symbol:
+          type: string
+        quantity:
+          type: number
+          format: float
+        price:
+          type: number
+          format: float
+          nullable: true
+        use_last_price:
+          type: boolean
+        slippage:
+          type: number
+          format: float
+          nullable: true
+        max_quantity:
+          type: number
+          format: float
+          description: Maximum quantity allowed after risk caps are applied.
+        stop_loss_pct:
+          type: number
+          format: float
+        take_profit_pct:
+          type: number
+          format: float
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        strategy_action_id:
+          type: integer
+        strategy_id:
+          type: integer
+        user_id:
+          type: integer
+        exchange_id:
+          type: integer
+        external_id:
+          type: string
+        symbol:
+          type: string
+        side:
+          type: string
+        order_type:
+          type: string
+        quantity:
+          type: number
+          format: float
+        price:
+          type: number
+          format: float
+          nullable: true
+        stop_loss_pct:
+          type: number
+          format: float
+        take_profit_pct:
+          type: number
+          format: float
+        status:
+          type: string
+        triggered_by_alert_id:
+          type: integer
+          nullable: true
+        executed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Position:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        exchange_id:
+          type: integer
+        symbol:
+          type: string
+        side:
+          type: string
+        quantity:
+          type: number
+          format: float
+        entry_price:
+          type: number
+          format: float
+        exit_price:
+          type: number
+          format: float
+          nullable: true
+        opened_at:
+          type: string
+          format: date-time
+        closed_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+        order_id:
+          type: integer
+          nullable: true
+        strategy_id:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    TransactionLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        strategy_id:
+          type: integer
+          nullable: true
+        strategy_action_id:
+          type: integer
+          nullable: true
+        order_id:
+          type: integer
+          nullable: true
+        level:
+          type: string
+        message:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+    Exchange:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    Pair:
+      type: object
+      properties:
+        symbol:
+          type: string
+        base_currency:
+          type: string
+        quote_currency:
+          type: string
