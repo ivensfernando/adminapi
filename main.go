@@ -1,7 +1,6 @@
 package main
 
 import (
-	"adminapi/src/database"
 	"adminapi/src/server"
 	"fmt"
 	"github.com/sirupsen/logrus"
@@ -35,7 +34,7 @@ func init() {
 
 func main() {
 	initLog()
-	db.InitDB(log) // ✅ MUST be here before any DB access
+	//db.InitDB(log) // ✅ MUST be here before any DB access
 	defer handlePanic()
 
 	server.StartServer(PORT)
