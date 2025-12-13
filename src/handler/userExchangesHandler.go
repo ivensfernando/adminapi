@@ -1,33 +1,33 @@
 package handler
 
 import (
+	"adminapi/src/repository"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
 	"strings"
-	"vsC1Y2025V01/src/repository"
 
-	"vsC1Y2025V01/internal/connectors"
-	"vsC1Y2025V01/src/auth"
-	"vsC1Y2025V01/src/model"
-	"vsC1Y2025V01/src/security"
+	//"adminapi/internal/connectors"
+	"adminapi/src/auth"
+	"adminapi/src/model"
+	"adminapi/src/security"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/sirupsen/logrus"
+	logger "github.com/sirupsen/logrus"
 )
 
 type mexcConnector interface {
 	TestConnection() error
 }
 
-var mexcConnectorFactory = func(apiKey, apiSecret string) mexcConnector {
-	return connectors.NewMexcConnector(apiKey, apiSecret)
-}
-
-var newMexcConnector = func(apiKey, apiSecret string) mexcConnector {
-	return connectors.NewMexcConnector(apiKey, apiSecret)
-}
+//var mexcConnectorFactory = func(apiKey, apiSecret string) mexcConnector {
+//	//return connectors.NewMexcConnector(apiKey, apiSecret)
+//}
+//
+//var newMexcConnector = func(apiKey, apiSecret string) mexcConnector {
+//	//return connectors.NewMexcConnector(apiKey, apiSecret)
+//}
 
 type testConnectionPayload struct {
 	APIKey        string `json:"apiKey"`
@@ -40,7 +40,7 @@ type testConnectionResponse struct {
 	Message string `json:"message"`
 }
 
-func UpsertUserExchangeHandler(logger *logrus.Entry) http.HandlerFunc {
+func UpsertUserExchangeHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.GetUserFromContext(r.Context())
 		if !ok || user == nil {
@@ -83,7 +83,7 @@ func UpsertUserExchangeHandler(logger *logrus.Entry) http.HandlerFunc {
 		if err != nil {
 			if errors.Is(err, repository.ErrUserExchangeNotFound) {
 				userExchange = &model.UserExchange{
-					UserID:     user.ID,
+					//UserID:     user.ID,
 					ExchangeID: payload.ExchangeID,
 				}
 			} else {
@@ -140,7 +140,7 @@ func UpsertUserExchangeHandler(logger *logrus.Entry) http.HandlerFunc {
 	}
 }
 
-func ListFormUserExchangesHandler(logger *logrus.Entry) http.HandlerFunc {
+func ListFormUserExchangesHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.GetUserFromContext(r.Context())
 		if !ok || user == nil {
@@ -168,7 +168,7 @@ func ListFormUserExchangesHandler(logger *logrus.Entry) http.HandlerFunc {
 	}
 }
 
-func DeleteUserExchangeHandler(logger *logrus.Entry) http.HandlerFunc {
+func DeleteUserExchangeHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.GetUserFromContext(r.Context())
 		if !ok || user == nil {
@@ -205,7 +205,7 @@ func DeleteUserExchangeHandler(logger *logrus.Entry) http.HandlerFunc {
 	}
 }
 
-func TestMexcConnectionHandler(logger *logrus.Entry) http.HandlerFunc {
+func TestMexcConnectionHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.GetUserFromContext(r.Context())
 		if !ok || user == nil {
@@ -263,32 +263,32 @@ func TestMexcConnectionHandler(logger *logrus.Entry) http.HandlerFunc {
 			return
 		}
 
-		apiKey, err := security.DecryptString(userExchange.APIKeyHash)
-		if err != nil {
-			logger.WithError(err).Error("failed to decrypt api key")
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
+		//apiKey, err := security.DecryptString(userExchange.APIKeyHash)
+		//if err != nil {
+		//	logger.WithError(err).Error("failed to decrypt api key")
+		//	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		//	return
+		//}
+		//
+		//apiSecret, err := security.DecryptString(userExchange.APISecretHash)
+		//if err != nil {
+		//	logger.WithError(err).Error("failed to decrypt api secret")
+		//	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		//	return
+		//}
 
-		apiSecret, err := security.DecryptString(userExchange.APISecretHash)
-		if err != nil {
-			logger.WithError(err).Error("failed to decrypt api secret")
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-
-		connector := mexcConnectorFactory(apiKey, apiSecret)
-		if connector == nil {
-			logger.Error("failed to build MEXC connector")
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-
-		if err := connector.TestConnection(); err != nil {
-			logger.WithError(err).Warn("MEXC connection test failed")
-			http.Error(w, "Failed to connect to MEXC", http.StatusBadGateway)
-			return
-		}
+		//connector := mexcConnectorFactory(apiKey, apiSecret)
+		//if connector == nil {
+		//	logger.Error("failed to build MEXC connector")
+		//	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		//	return
+		//}
+		//
+		//if err := connector.TestConnection(); err != nil {
+		//	logger.WithError(err).Warn("MEXC connection test failed")
+		//	http.Error(w, "Failed to connect to MEXC", http.StatusBadGateway)
+		//	return
+		//}
 
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {

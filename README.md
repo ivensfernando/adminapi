@@ -114,11 +114,11 @@ must be enabled for both spot and futures on your key for the request to succeed
 ## Run the migration
 ```bash
 export DATABASE_URL="postgres://user:password@localhost:5432/yourdb?sslmode=disable"
-migrate -database "$DATABASE_URL" -path db/migrations up
+migrate -database "$DATABASE_URL" -path database/migrations up
 # to check version
-migrate -database "$DATABASE_URL" -path db/migrations version
+migrate -database "$DATABASE_URL" -path database/migrations version
 # to rollback one step (if needed)
-# migrate -database "$DATABASE_URL" -path db/migrations down 1
+# migrate -database "$DATABASE_URL" -path database/migrations down 1
 ```
 
 If you use Docker Compose, you can run the CLI inside a Postgres or app container; or call migrations from a Makefile/CI step.

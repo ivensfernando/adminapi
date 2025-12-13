@@ -6,14 +6,14 @@ import (
 	"strings"
 	"time"
 
-	"vsC1Y2025V01/src/auth"
-	"vsC1Y2025V01/src/db"
-	"vsC1Y2025V01/src/model"
+	"adminapi/src/auth"
+	"adminapi/src/database"
+	"adminapi/src/model"
 
-	"github.com/sirupsen/logrus"
+	logger "github.com/sirupsen/logrus"
 )
 
-func UpdateUserHandler(logger *logrus.Entry) http.HandlerFunc {
+func UpdateUserHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.GetUserFromContext(r.Context())
 		if !ok || user == nil {

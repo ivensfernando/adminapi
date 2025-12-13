@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"vsC1Y2025V01/src/db"
-	"vsC1Y2025V01/src/model"
+	"adminapi/src/database"
+	"adminapi/src/model"
 
 	"gorm.io/gorm"
 )

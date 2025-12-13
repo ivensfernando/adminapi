@@ -1,8 +1,8 @@
 package auth
 
 import (
+	"adminapi/src/model"
 	"context"
-	"vsC1Y2025V01/src/model"
 )
 
 type contextKey string

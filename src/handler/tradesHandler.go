@@ -1,18 +1,18 @@
 package handler
 
 import (
+	"adminapi/src/auth"
+	"adminapi/src/database"
+	"adminapi/src/model"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/go-chi/chi/v5"
-	"github.com/sirupsen/logrus"
+	logger "github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-	"vsC1Y2025V01/src/auth"
-	"vsC1Y2025V01/src/db"
-	"vsC1Y2025V01/src/model"
 )
 
 type TradeListResponse struct {
@@ -23,7 +23,7 @@ type TradeListResponse struct {
 //	func ListTradesHandler(logger *logrus.Entry) http.HandlerFunc {
 //		return func(w http.ResponseWriter, r *http.Request) {
 //			var trades []model.Trade
-//			if err := db.DB.Find(&trades).Error; err != nil {
+//			if err := database.DB.Find(&trades).Error; err != nil {
 //				logger.WithError(err).Error("Failed to fetch trades")
 //				http.Error(w, "Failed to fetch trades", http.StatusInternalServerError)
 //				return
@@ -40,7 +40,7 @@ type TradeListResponse struct {
 //		}
 //	}
 
-func ListTradesHandler(logger *logrus.Entry) http.HandlerFunc {
+func ListTradesHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.GetUserFromContext(r.Context())
 		if !ok {
@@ -213,7 +213,7 @@ func CreateTrade(user model.User, payload model.TradePayload, loc *time.Location
 	return &trade, nil
 }
 
-func GetTradeHandler(logger *logrus.Entry) http.HandlerFunc {
+func GetTradeHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		idStr := chi.URLParam(r, "id")
@@ -273,7 +273,7 @@ func GetTradeHandler(logger *logrus.Entry) http.HandlerFunc {
 
 //const UserKey contextKey = "user"
 
-func CreateTradeHandler(logger *logrus.Entry) http.HandlerFunc {
+func CreateTradeHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var payload model.TradePayload
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -317,7 +317,7 @@ func CreateTradeHandler(logger *logrus.Entry) http.HandlerFunc {
 		//trade.CreatedAt = time.Now()
 		//trade.UpdatedAt = time.Now()
 
-		//if err := db.DB.Create(&trade).Error; err != nil {
+		//if err := database.DB.Create(&trade).Error; err != nil {
 		//	logger.WithError(err).Error("Failed to create trade")
 		//	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		//	return
@@ -448,7 +448,7 @@ func CreateTradeHandler(logger *logrus.Entry) http.HandlerFunc {
 //	return nil
 //}
 
-func UpdateTradeHandler(logger *logrus.Entry) http.HandlerFunc {
+func UpdateTradeHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
 		if idStr == "" {
@@ -518,7 +518,7 @@ func UpdateTradeHandler(logger *logrus.Entry) http.HandlerFunc {
 	}
 }
 
-func DeleteTradeHandler(logger *logrus.Entry) http.HandlerFunc {
+func DeleteTradeHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
 		if idStr == "" {
@@ -551,7 +551,7 @@ func DeleteTradeHandler(logger *logrus.Entry) http.HandlerFunc {
 	}
 }
 
-func DeleteManyTradesHandler(logger *logrus.Entry) http.HandlerFunc {
+func DeleteManyTradesHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var payload struct {
 			IDs []uint `json:"id"`

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"adminapi/src/payloads"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,17 +9,16 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"vsC1Y2025V01/src/payloads"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/sirupsen/logrus"
+	logger "github.com/sirupsen/logrus"
 
-	"vsC1Y2025V01/src/auth"
-	"vsC1Y2025V01/src/model"
-	"vsC1Y2025V01/src/repository"
+	"adminapi/src/auth"
+	"adminapi/src/model"
+	"adminapi/src/repository"
 )
 
-func CreateWebhookHandler(logger *logrus.Entry) http.HandlerFunc {
+func CreateWebhookHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.GetUserFromContext(r.Context())
 		if !ok || user == nil {
@@ -92,7 +92,7 @@ func CreateWebhookHandler(logger *logrus.Entry) http.HandlerFunc {
 	}
 }
 
-func AlertHandler(logger *logrus.Entry) http.HandlerFunc {
+func AlertHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := chi.URLParam(r, "token")
 		if strings.TrimSpace(token) == "" {
@@ -191,7 +191,7 @@ func AlertHandler(logger *logrus.Entry) http.HandlerFunc {
 	}
 }
 
-func ListWebhooksHandler(logger *logrus.Entry) http.HandlerFunc {
+func ListWebhooksHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.GetUserFromContext(r.Context())
 		if !ok {
@@ -244,7 +244,7 @@ func ListWebhooksHandler(logger *logrus.Entry) http.HandlerFunc {
 	}
 }
 
-func UpdateWebhookHandler(logger *logrus.Entry) http.HandlerFunc {
+func UpdateWebhookHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.GetUserFromContext(r.Context())
 		if !ok {
@@ -324,7 +324,7 @@ func UpdateWebhookHandler(logger *logrus.Entry) http.HandlerFunc {
 	}
 }
 
-func DeleteWebhookHandler(logger *logrus.Entry) http.HandlerFunc {
+func DeleteWebhookHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.GetUserFromContext(r.Context())
 		if !ok {
@@ -360,7 +360,7 @@ func DeleteWebhookHandler(logger *logrus.Entry) http.HandlerFunc {
 	}
 }
 
-func ListWebhookAlertsHandler(logger *logrus.Entry) http.HandlerFunc {
+func ListWebhookAlertsHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.GetUserFromContext(r.Context())
 		if !ok {

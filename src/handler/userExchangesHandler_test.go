@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"adminapi/src/repository"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -14,11 +15,10 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"vsC1Y2025V01/src/repository"
 
-	"vsC1Y2025V01/src/auth"
-	"vsC1Y2025V01/src/model"
-	"vsC1Y2025V01/src/security"
+	"adminapi/src/auth"
+	"adminapi/src/model"
+	"adminapi/src/security"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"

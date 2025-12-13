@@ -1,22 +1,22 @@
 package auth
 
 import (
+	"adminapi/src/repository"
 	"context"
 	"errors"
 	"net/http"
 	"strings"
 	"time"
-	"vsC1Y2025V01/src/repository"
 
 	"github.com/go-chi/cors"
-	"github.com/sirupsen/logrus"
+	logger "github.com/sirupsen/logrus"
 )
 
 //type contextKey string
 //
 //const UserKey contextKey = "user"
 
-func AuthMiddleware(logger *logrus.Entry) func(http.Handler) http.Handler {
+func AuthMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger.WithField("path", r.URL.Path).Info("Authenticating request")
@@ -65,7 +65,7 @@ func AuthMiddleware(logger *logrus.Entry) func(http.Handler) http.Handler {
 	}
 }
 
-func RequireAuthMiddleware(logger *logrus.Entry) func(http.Handler) http.Handler {
+func RequireAuthMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			//if r.Method == http.MethodOptions {
@@ -110,7 +110,7 @@ func RequireAuthMiddleware(logger *logrus.Entry) func(http.Handler) http.Handler
 	}
 }
 
-func AllowOrigin(w http.ResponseWriter, r *http.Request, logger *logrus.Entry) {
+func AllowOrigin(w http.ResponseWriter, r *http.Request) {
 	logger.WithField("url", r.URL).Debug("AllowOrigin, OPTIONS")
 
 	w.Header().Set("Content-Type", "application/json")
@@ -124,14 +124,14 @@ func AllowOrigin(w http.ResponseWriter, r *http.Request, logger *logrus.Entry) {
 
 }
 
-func AllowOriginMiddleware(next http.Handler, logger *logrus.Entry) http.Handler {
+func AllowOriginMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		AllowOrigin(w, r, logger)
+		AllowOrigin(w, r)
 		next.ServeHTTP(w, r)
 	})
 }
 
-func OptionsMiddleware(next http.Handler, logger *logrus.Entry) http.Handler {
+func OptionsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
 			logger.WithField("url", r.URL).Debug("OptionsMiddleware, OPTIONS")
@@ -142,7 +142,7 @@ func OptionsMiddleware(next http.Handler, logger *logrus.Entry) http.Handler {
 	})
 }
 
-func CorsHandler(logger *logrus.Entry) func(http.Handler) http.Handler {
+func CorsHandler() func(http.Handler) http.Handler {
 	return cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},

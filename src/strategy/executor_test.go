@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 
-	"vsC1Y2025V01/src/model"
+	"adminapi/src/model"
 )
 
 type stubConnector struct {

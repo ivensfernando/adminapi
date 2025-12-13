@@ -1,12 +1,12 @@
 package main
 
 import (
+	"adminapi/src/database"
+	"adminapi/src/server"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"os"
 	"time"
-	"vsC1Y2025V01/src/db"
-	"vsC1Y2025V01/src/server"
 )
 
 var (
@@ -38,7 +38,7 @@ func main() {
 	db.InitDB(log) // ✅ MUST be here before any DB access
 	defer handlePanic()
 
-	server.StartServer(PORT, log)
+	server.StartServer(PORT)
 }
 
 func handlePanic() {

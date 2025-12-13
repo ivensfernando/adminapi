@@ -7,8 +7,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"vsC1Y2025V01/internal/connectors"
-	"vsC1Y2025V01/src/model"
+	"adminapi/internal/connectors"
+	"adminapi/src/model"
 )
 
 type ConnectorProvider interface {

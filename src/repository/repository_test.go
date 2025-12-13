@@ -3,7 +3,7 @@ package repository
 import (
 	"testing"
 
-	"vsC1Y2025V01/src/model"
+	"adminapi/src/model"
 )
 
 type mockUserRepository struct{}

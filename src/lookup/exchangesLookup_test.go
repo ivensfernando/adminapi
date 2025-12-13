@@ -9,7 +9,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"vsC1Y2025V01/src/model"
+	"adminapi/src/model"
 )
 
 func TestListExchanges(t *testing.T) {

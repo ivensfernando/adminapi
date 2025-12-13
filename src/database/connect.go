@@ -1,4 +1,4 @@
-package db
+package database
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 	"gorm.io/gorm"
 	"os"
 	"time"
-	"vsC1Y2025V01/src/model"
 )
 
 var DB *gorm.DB
@@ -22,12 +21,12 @@ func InitDB(logger *logrus.Entry) {
 		os.Getenv("PGDATABASE"),
 		os.Getenv("PGPORT"),
 	)
-	//db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	//database, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	//if err != nil {
 	//	logger.WithError(err).Fatal("Failed to connect to database")
 	//}
 	//
-	//if err := db.AutoMigrate(&model.Alert{}, &model.User{}, &model.Trade{}); err != nil {
+	//if err := database.AutoMigrate(&model.Alert{}, &model.User{}, &model.Trade{}); err != nil {
 	//	logger.WithError(err).Fatal("Failed to migrate database")
 	//}
 
@@ -48,19 +47,21 @@ func InitDB(logger *logrus.Entry) {
 	sqlDB.SetConnMaxLifetime(1 * time.Hour)
 
 	if err := db.AutoMigrate(
-		&model.Alert{},
-		&model.User{},
-		&model.Trade{},
-		&model.Exchange{},
-		&model.PairsCoins{},
-		&model.UserExchange{},
-		&model.Webhook{},
-		&model.WebhookAlert{},
-		&model.Strategy{},
-		&model.StrategyAction{},
-		&model.Order{},
-		&model.Position{},
-		&model.TransactionLog{},
+	//&model.Alert{},
+	//&model.User{},
+	//&model.Trade{},
+	//&model.Exchange{},
+	//&model.PairsCoins{},
+	//&model.UserExchange{},
+	//&model.Webhook{},
+	//&model.WebhookAlert{},
+	//&model.PhemexOrder{},
+	//&model.UserExchange{},
+	////&model.Strategy{},
+	////&model.StrategyAction{},
+	//&model.Order{},
+	//&model.Position{},
+	//&model.TransactionLog{},
 	); err != nil {
 		logger.WithError(err).Fatal("Failed to migrate database")
 	}

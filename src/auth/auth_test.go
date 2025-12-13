@@ -1,6 +1,8 @@
 package auth
 
 import (
+	handler2 "adminapi/src/handler"
+	"adminapi/src/repository"
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -8,10 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
-	handler2 "vsC1Y2025V01/src/handler"
-	"vsC1Y2025V01/src/repository"
 
-	"vsC1Y2025V01/src/model"
+	"adminapi/src/model"
 
 	"github.com/sirupsen/logrus"
 )

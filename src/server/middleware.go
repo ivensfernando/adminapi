@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/sirupsen/logrus"
+	logger "github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"strings"
@@ -9,12 +9,12 @@ import (
 )
 
 // Logs every request with timing
-func requestLogger(logger *logrus.Entry) func(http.Handler) http.Handler {
+func requestLogger() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 			next.ServeHTTP(w, r)
-			logger.WithFields(logrus.Fields{
+			logger.WithFields(logger.Fields{
 				"method": r.Method,
 				"path":   r.URL.Path,
 				"took":   time.Since(start),
@@ -24,7 +24,7 @@ func requestLogger(logger *logrus.Entry) func(http.Handler) http.Handler {
 }
 
 // Auth check using header "X-Secret-Key"
-func sharedSecretAuth(logger *logrus.Entry) func(http.Handler) http.Handler {
+func sharedSecretAuth() func(http.Handler) http.Handler {
 	secret := os.Getenv("SHARED_SECRET")
 
 	return func(next http.Handler) http.Handler {

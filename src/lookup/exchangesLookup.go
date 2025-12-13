@@ -1,13 +1,13 @@
 package lookup
 
 import (
+	"adminapi/src/database"
+	"adminapi/src/model"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"vsC1Y2025V01/src/db"
-	"vsC1Y2025V01/src/model"
 
-	"github.com/sirupsen/logrus"
+	logger "github.com/sirupsen/logrus"
 )
 
 var (
@@ -43,7 +43,7 @@ var (
 )
 
 // GET /exchanges
-func ListExchanges(logger *logrus.Entry) http.HandlerFunc {
+func ListExchanges() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		exchanges, total, err := fetchExchanges()
 		if err != nil {
@@ -67,7 +67,7 @@ func ListExchanges(logger *logrus.Entry) http.HandlerFunc {
 }
 
 // GET /pairs
-func ListPairs(logger *logrus.Entry) http.HandlerFunc {
+func ListPairs() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pairs, total, err := fetchPairs()
 		if err != nil {

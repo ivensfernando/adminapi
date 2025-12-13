@@ -1,20 +1,20 @@
 package handler
 
 import (
+	"adminapi/src/auth"
+	"adminapi/src/model"
+	"adminapi/src/payloads"
+	"adminapi/src/repository"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
-	"vsC1Y2025V01/src/auth"
-	"vsC1Y2025V01/src/model"
-	"vsC1Y2025V01/src/payloads"
-	"vsC1Y2025V01/src/repository"
 
-	"github.com/sirupsen/logrus"
+	logger "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func RegisterHandler(logger *logrus.Entry) http.HandlerFunc {
+func RegisterHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var payload payloads.AuthPayload
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -61,7 +61,7 @@ func RegisterHandler(logger *logrus.Entry) http.HandlerFunc {
 	}
 }
 
-func LoginHandler(logger *logrus.Entry) http.HandlerFunc {
+func LoginHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Login attempt received")
 
@@ -132,7 +132,7 @@ func LoginHandler(logger *logrus.Entry) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	}
 }
-func LogoutHandler(logger *logrus.Entry) http.HandlerFunc {
+func LogoutHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("User logging out")
 
@@ -151,7 +151,7 @@ func LogoutHandler(logger *logrus.Entry) http.HandlerFunc {
 
 //const UserKeyM contextKey = "user"
 
-func MeHandler(logger *logrus.Entry) http.HandlerFunc {
+func MeHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		//user, ok := r.Context().Value("user").(*model.User)
 		user, ok := r.Context().Value(auth.UserKey).(*model.User)

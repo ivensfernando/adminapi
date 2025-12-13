@@ -3,12 +3,15 @@ package model
 import "time"
 
 type UserExchange struct {
-	ID                uint      `gorm:"primaryKey" json:"id"`
-	UserID            uint      `gorm:"not null;index:idx_user_exchange,unique" json:"user_id"`
+	ID     uint   `gorm:"primaryKey" json:"id"`
+	UserID string `gorm:"not null;index:idx_user_exchange,unique" json:"user_id"`
+
+	UserIDUINT        uint      `gorm:"not null;index:idx_user_exchange,unique" json:"user_id"`
 	ExchangeID        uint      `gorm:"not null;index:idx_user_exchange,unique" json:"exchange_id"`
 	APIKeyHash        string    `gorm:"column:api_key;type:text" json:"-"`
 	APISecretHash     string    `gorm:"column:api_secret;type:text" json:"-"`
 	APIPassphraseHash string    `gorm:"column:api_passphrase;type:text" json:"-"`
+	RunOnServer       bool      `gorm:"column:run_on_server" json:"run_on_server"`
 	ShowInForms       bool      `gorm:"not null;default:false" json:"show_in_forms"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
@@ -23,6 +26,7 @@ type UpsertUserExchangePayload struct {
 	APISecret     string `json:"apiSecret"`
 	APIPassphrase string `json:"apiPassphrase"`
 	ShowInForms   bool   `json:"showInForms"`
+	RunOnServer   bool   `json:"runOnServer"`
 }
 
 type UserExchangeResponse struct {
@@ -30,6 +34,7 @@ type UserExchangeResponse struct {
 	ExchangeID       uint   `json:"exchangeId"`
 	ExchangeName     string `json:"exchangeName,omitempty"`
 	ShowInForms      bool   `json:"showInForms"`
+	RunOnServer      bool   `json:"runOnServer"`
 	HasAPIKey        bool   `json:"hasApiKey"`
 	HasAPISecret     bool   `json:"hasApiSecret"`
 	HasAPIPassphrase bool   `json:"hasApiPassphrase"`
