@@ -64,6 +64,8 @@ func InitMainDB() error {
 		&model.Exception{},
 		&model.UserExchange{},
 		&model.Position{},
+		&model.Webhook{},
+		&model.WebhookAlert{},
 		//&model.Strategy{},
 		//&model.StrategyAction{},
 	); err != nil {

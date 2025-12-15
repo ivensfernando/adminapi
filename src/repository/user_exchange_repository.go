@@ -118,7 +118,7 @@ func (s *gormUserExchangeRepository) ListFormUserExchanges(userID uint) ([]model
 	}
 
 	var exchanges []model.UserExchange
-	if err := database.MainDB.Preload("Exchange").Where("user_id = ? AND show_in_forms = ?", userID, true).Find(&exchanges).Error; err != nil {
+	if err := database.MainDB.Preload("Exchange").Where("user_id = ? ", userID).Find(&exchanges).Error; err != nil {
 		return nil, err
 	}
 
