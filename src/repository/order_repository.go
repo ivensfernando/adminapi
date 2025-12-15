@@ -12,6 +12,17 @@ import (
 	"adminapi/src/model"
 )
 
+// OrderSearchOptions defines parameters for filtering orders for a user.
+type OrderSearchOptions struct {
+	UserID        uint
+	ExchangeID    *uint
+	Symbol        *string
+	CreatedAfter  *time.Time
+	CreatedBefore *time.Time
+	Limit         int
+	Offset        int
+}
+
 // OrderRepository handles read/write operations for orders and their execution logs.
 type OrderRepository struct {
 	db *gorm.DB
@@ -161,6 +172,88 @@ func (r *OrderRepository) FindLatest(
 		"limit":       limit,
 		"rows_return": len(orders),
 	}).Info("Latest orders fetched")
+
+	return orders, nil
+}
+
+// Search retrieves orders for a given user and optionally filters by exchange.
+// Results are returned from newest to oldest.
+func (r *OrderRepository) Search(
+	ctx context.Context,
+	options OrderSearchOptions,
+) ([]model.Order, error) {
+
+	logger.WithFields(map[string]interface{}{
+		"repo":         "OrderRepository",
+		"op":           "Search",
+		"user_id":      options.UserID,
+		"exchange_id":  options.ExchangeID,
+		"symbol":       options.Symbol,
+		"created_from": options.CreatedAfter,
+		"created_to":   options.CreatedBefore,
+		"limit":        options.Limit,
+		"offset":       options.Offset,
+	}).Debug("Searching orders")
+
+	query := r.db.WithContext(ctx).
+		Where("user_id = ?", options.UserID)
+
+	if options.ExchangeID != nil {
+		query = query.Where("exchange_id = ?", *options.ExchangeID)
+	}
+
+	if options.Symbol != nil {
+		query = query.Where("symbol = ?", *options.Symbol)
+	}
+
+	if options.CreatedAfter != nil {
+		query = query.Where("created_at >= ?", *options.CreatedAfter)
+	}
+
+	if options.CreatedBefore != nil {
+		query = query.Where("created_at <= ?", *options.CreatedBefore)
+	}
+
+	if options.Limit > 0 {
+		query = query.Limit(options.Limit)
+	}
+
+	if options.Offset > 0 {
+		query = query.Offset(options.Offset)
+	}
+
+	var orders []model.Order
+
+	if err := query.
+		Order("created_at DESC, id DESC").
+		Find(&orders).Error; err != nil {
+		logger.WithFields(map[string]interface{}{
+			"repo":         "OrderRepository",
+			"op":           "Search",
+			"user_id":      options.UserID,
+			"exchange_id":  options.ExchangeID,
+			"symbol":       options.Symbol,
+			"created_from": options.CreatedAfter,
+			"created_to":   options.CreatedBefore,
+			"limit":        options.Limit,
+			"offset":       options.Offset,
+		}).WithError(err).Error("Failed to search orders")
+
+		return nil, err
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"repo":         "OrderRepository",
+		"op":           "Search",
+		"user_id":      options.UserID,
+		"exchange_id":  options.ExchangeID,
+		"count":        len(orders),
+		"symbol":       options.Symbol,
+		"created_from": options.CreatedAfter,
+		"created_to":   options.CreatedBefore,
+		"limit":        options.Limit,
+		"offset":       options.Offset,
+	}).Info("Orders search completed")
 
 	return orders, nil
 }

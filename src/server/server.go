@@ -51,6 +51,7 @@ func StartServer(port string) {
 			r.Get("/me", handler.MeHandler())
 			r.Put("/me", handler.UpdateUserHandler())
 			r.Get("/logout", handler.LogoutHandler())
+			r.Get("/orders", handler.DefaultSearchOrdersHandler())
 
 			r.Route("/user-exchanges", func(r chi.Router) {
 				r.Post("/", handler.UpsertUserExchangeHandler())

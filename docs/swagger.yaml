@@ -369,6 +369,63 @@ paths:
         '401':
           description: Unauthorized
 
+  /api/v1/orders:
+    get:
+      tags: [Orders]
+      summary: Search orders for the authenticated user
+      description: Returns the user's orders with optional filters and pagination.
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      parameters:
+        - in: query
+          name: exchangeId
+          schema:
+            type: integer
+          description: Only return orders for this exchange ID.
+        - in: query
+          name: symbol
+          schema:
+            type: string
+          description: Only return orders for the given trading symbol.
+        - in: query
+          name: createdFrom
+          schema:
+            type: string
+            format: date-time
+          description: Return orders created at or after this timestamp (RFC3339).
+        - in: query
+          name: createdTo
+          schema:
+            type: string
+            format: date-time
+          description: Return orders created at or before this timestamp (RFC3339).
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: 1-based page number.
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            default: 20
+          description: Number of records per page.
+      responses:
+        '200':
+          description: Orders matching the filters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '400':
+          description: Invalid filters or pagination
+        '401':
+          description: Unauthorized
+
   /api/v1/user-exchanges/forms:
     get:
       tags: [User Exchanges]
