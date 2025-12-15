@@ -50,6 +50,7 @@ func NewUserExchangeResponse(ue *UserExchange) UserExchangeResponse {
 		ID:               ue.ID,
 		ExchangeID:       ue.ExchangeID,
 		ShowInForms:      ue.ShowInForms,
+		RunOnServer:      ue.RunOnServer,
 		HasAPIKey:        ue.APIKeyHash != "",
 		HasAPISecret:     ue.APISecretHash != "",
 		HasAPIPassphrase: ue.APIPassphraseHash != "",

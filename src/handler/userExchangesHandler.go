@@ -83,7 +83,7 @@ func UpsertUserExchangeHandler() http.HandlerFunc {
 		if err != nil {
 			if errors.Is(err, repository.ErrUserExchangeNotFound) {
 				userExchange = &model.UserExchange{
-					//UserID:     user.ID,
+					UserID:     user.ID,
 					ExchangeID: payload.ExchangeID,
 				}
 			} else {
@@ -124,6 +124,7 @@ func UpsertUserExchangeHandler() http.HandlerFunc {
 		}
 
 		userExchange.ShowInForms = payload.ShowInForms
+		userExchange.RunOnServer = payload.RunOnServer
 
 		if err := repository.GetUserExchangeStore().SaveUserExchange(userExchange); err != nil {
 			logger.WithError(err).Error("failed to upsert user exchange")
