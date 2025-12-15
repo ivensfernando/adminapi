@@ -55,6 +55,7 @@ func InitMainDB() error {
 	// Run AutoMigrate only on the main database.
 	// Add here all models that belong to the write-side schema.
 	if err := MainDB.AutoMigrate(
+		&model.User{},
 		&model.Order{},
 		&model.OrderLog{},
 		&model.OrderExecutionLog{},

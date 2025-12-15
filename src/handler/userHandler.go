@@ -49,7 +49,7 @@ func UpdateUserHandler() http.HandlerFunc {
 
 		user.UpdatedAt = time.Now()
 
-		if err := db.DB.Save(user).Error; err != nil {
+		if err := database.MainDB.Save(user).Error; err != nil {
 			logger.WithError(err).Error("failed to update user profile")
 			http.Error(w, "Unable to update profile", http.StatusInternalServerError)
 			return

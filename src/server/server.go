@@ -20,26 +20,10 @@ func StartServer(port string) {
 	r := chi.NewRouter()
 	// === Global Middleware ===
 
-	//r.Use(auth.AllowOriginMiddleware(logger), auth.OptionsMiddleware(logger))
 	r.Use(auth.CorsHandler())
 
-	//r.Use(cors.Handler(cors.Options{
-	//	AllowedOrigins:   []string{"http://localhost:3000"}, // React/React-Admin frontend
-	//	AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-	//	AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
-	//	AllowCredentials: true,
-	//	MaxAge:           300,
-	//}))
 	r.Use(requestLogger())
 	r.Use(sharedSecretAuth()) // <- Our custom auth middleware
-
-	//r.Method("OPTIONS", "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	//	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-	//	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-	//	w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, Range")
-	//	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	//	w.WriteHeader(http.StatusOK)
-	//}))
 
 	// Public routes
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -67,14 +51,6 @@ func StartServer(port string) {
 			r.Get("/me", handler.MeHandler())
 			r.Put("/me", handler.UpdateUserHandler())
 			r.Get("/logout", handler.LogoutHandler())
-
-			// CRUD Routes for Trades
-			r.Get("/trades", handler.ListTradesHandler())
-			r.Get("/trades/{id}", handler.GetTradeHandler())
-			r.Post("/trades", handler.CreateTradeHandler())
-			r.Put("/trades/{id}", handler.UpdateTradeHandler())
-			r.Delete("/trades", handler.DeleteManyTradesHandler())
-			r.Delete("/trades/{id}", handler.DeleteTradeHandler())
 
 			r.Route("/user-exchanges", func(r chi.Router) {
 				r.Post("/", handler.UpsertUserExchangeHandler())

@@ -120,20 +120,20 @@ func GetWebhookAlertRepository() WebhookAlertRepository {
 type gormWebhookRepository struct{}
 
 func (r *gormWebhookRepository) Create(webhook *model.Webhook) error {
-	if db.DB == nil {
+	if database.MainDB == nil {
 		return errors.New("database connection is not initialized")
 	}
 
-	return db.DB.Create(webhook).Error
+	return database.MainDB.Create(webhook).Error
 }
 
 func (r *gormWebhookRepository) FindByToken(token string) (*model.Webhook, error) {
-	if db.DB == nil {
+	if database.MainDB == nil {
 		return nil, errors.New("database connection is not initialized")
 	}
 
 	var webhook model.Webhook
-	if err := db.DB.Where("token = ?", token).First(&webhook).Error; err != nil {
+	if err := database.MainDB.Where("token = ?", token).First(&webhook).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrWebhookNotFound
 		}
@@ -145,12 +145,12 @@ func (r *gormWebhookRepository) FindByToken(token string) (*model.Webhook, error
 }
 
 func (r *gormWebhookRepository) FindByIDForUser(id, userID uint) (*model.Webhook, error) {
-	if db.DB == nil {
+	if database.MainDB == nil {
 		return nil, errors.New("database connection is not initialized")
 	}
 
 	var webhook model.Webhook
-	if err := db.DB.Where("id = ? AND user_id = ?", id, userID).First(&webhook).Error; err != nil {
+	if err := database.MainDB.Where("id = ? AND user_id = ?", id, userID).First(&webhook).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrWebhookNotFound
 		}
@@ -162,11 +162,11 @@ func (r *gormWebhookRepository) FindByIDForUser(id, userID uint) (*model.Webhook
 }
 
 func (r *gormWebhookRepository) List(options WebhookListOptions) ([]model.Webhook, int64, error) {
-	if db.DB == nil {
+	if database.MainDB == nil {
 		return nil, 0, errors.New("database connection is not initialized")
 	}
 
-	query := db.DB.Model(&model.Webhook{}).Where("user_id = ?", options.UserID)
+	query := database.MainDB.Model(&model.Webhook{}).Where("user_id = ?", options.UserID)
 
 	if options.Active != nil {
 		query = query.Where("active = ?", *options.Active)
@@ -192,7 +192,7 @@ func (r *gormWebhookRepository) List(options WebhookListOptions) ([]model.Webhoo
 }
 
 func (r *gormWebhookRepository) Save(webhook *model.Webhook) error {
-	if db.DB == nil {
+	if database.MainDB == nil {
 		return errors.New("database connection is not initialized")
 	}
 
@@ -200,33 +200,33 @@ func (r *gormWebhookRepository) Save(webhook *model.Webhook) error {
 		webhook.UpdatedAt = time.Now()
 	}
 
-	return db.DB.Save(webhook).Error
+	return database.MainDB.Save(webhook).Error
 }
 
 func (r *gormWebhookRepository) Delete(webhook *model.Webhook) error {
-	if db.DB == nil {
+	if database.MainDB == nil {
 		return errors.New("database connection is not initialized")
 	}
 
-	return db.DB.Delete(webhook).Error
+	return database.MainDB.Delete(webhook).Error
 }
 
 type gormWebhookAlertRepository struct{}
 
 func (r *gormWebhookAlertRepository) Create(alert *model.WebhookAlert) error {
-	if db.DB == nil {
+	if database.MainDB == nil {
 		return errors.New("database connection is not initialized")
 	}
 
-	return db.DB.Create(alert).Error
+	return database.MainDB.Create(alert).Error
 }
 
 func (r *gormWebhookAlertRepository) List(options WebhookAlertListOptions) ([]model.WebhookAlert, int64, error) {
-	if db.DB == nil {
+	if database.MainDB == nil {
 		return nil, 0, errors.New("database connection is not initialized")
 	}
 
-	query := db.DB.Model(&model.WebhookAlert{}).Where("user_id = ?", options.UserID)
+	query := database.MainDB.Model(&model.WebhookAlert{}).Where("user_id = ?", options.UserID)
 
 	if options.WebhookID != nil {
 		query = query.Where("webhook_id = ?", *options.WebhookID)

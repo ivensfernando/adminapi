@@ -36,8 +36,8 @@ type Order struct {
 	ID uint `gorm:"primaryKey" json:"id"`
 	//StrategyActionID *uint `gorm:"index" json:"strategy_action_id"`
 	//StrategyID         *uint      `gorm:"index" json:"strategy_id"`
-	//UserID             uint       `gorm:"index" json:"user_id"`
-	UserID        string   `gorm:"size:60" json:"user_id"`
+	UserID        uint     `gorm:"index" json:"user_id"`
+	LegacyUserID  string   `gorm:"size:60;column:legacy_user_id" json:"legacy_user_id,omitempty"`
 	ExchangeID    uint     `gorm:"index" json:"exchange_id"`
 	ExchangeResp  string   `json:"exchange_resp,omitempty"`
 	ExternalID    uint     `gorm:"index" json:"external_id"`

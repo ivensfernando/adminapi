@@ -4,7 +4,7 @@ import "time"
 
 type User struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
-	Username    string    `gorm:"uniqueIndex;not null" json:"username"`
+	Username    string    `gorm:"column:user_name;uniqueIndex;not null" json:"user_name"`
 	Password    string    `json:"-"` // Hashed
 	Email       string    `gorm:"size:255" json:"email"`
 	FirstName   string    `gorm:"size:100" json:"first_name"`
@@ -17,5 +17,4 @@ type User struct {
 	LastSeen    time.Time `json:"last_seen"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-	//Trades      []Trade `gorm:"foreignKey:UserID"` // One-to-many
 }

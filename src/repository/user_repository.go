@@ -60,10 +60,10 @@ func GetUserRepository() UserRepository {
 type gormUserRepository struct{}
 
 func (r *gormUserRepository) Create(user *model.User) error {
-	if db.DB == nil {
+	if database.MainDB == nil {
 		return errors.New("database connection is not initialized")
 	}
-	if err := db.DB.Create(user).Error; err != nil {
+	if err := database.MainDB.Create(user).Error; err != nil {
 		var errWithSQLState interface{ SQLState() string }
 
 		switch {
@@ -80,12 +80,12 @@ func (r *gormUserRepository) Create(user *model.User) error {
 }
 
 func (r *gormUserRepository) FindByUsername(username string) (*model.User, error) {
-	if db.DB == nil {
+	if database.MainDB == nil {
 		return nil, errors.New("database connection is not initialized")
 	}
 
 	var user model.User
-	if err := db.DB.Where("username = ?", username).First(&user).Error; err != nil {
+	if err := database.MainDB.Where("user_name = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}
@@ -97,12 +97,12 @@ func (r *gormUserRepository) FindByUsername(username string) (*model.User, error
 }
 
 func (r *gormUserRepository) FindByID(id uint) (*model.User, error) {
-	if db.DB == nil {
+	if database.MainDB == nil {
 		return nil, errors.New("database connection is not initialized")
 	}
 
 	var user model.User
-	if err := db.DB.First(&user, id).Error; err != nil {
+	if err := database.MainDB.First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}
@@ -114,7 +114,7 @@ func (r *gormUserRepository) FindByID(id uint) (*model.User, error) {
 }
 
 func (r *gormUserRepository) Update(user *model.User) error {
-	if db.DB == nil {
+	if database.MainDB == nil {
 		return errors.New("database connection is not initialized")
 	}
 
@@ -122,5 +122,5 @@ func (r *gormUserRepository) Update(user *model.User) error {
 		user.UpdatedAt = time.Now()
 	}
 
-	return db.DB.Save(user).Error
+	return database.MainDB.Save(user).Error
 }

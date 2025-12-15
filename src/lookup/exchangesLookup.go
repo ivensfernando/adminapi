@@ -15,11 +15,11 @@ var (
 		var exchanges []model.Exchange
 		var total int64
 
-		if err := db.DB.Model(&model.Exchange{}).Count(&total).Error; err != nil {
+		if err := database.MainDB.Model(&model.Exchange{}).Count(&total).Error; err != nil {
 			return nil, 0, err
 		}
 
-		if err := db.DB.Find(&exchanges).Error; err != nil {
+		if err := database.MainDB.Find(&exchanges).Error; err != nil {
 			return nil, 0, err
 		}
 
@@ -30,11 +30,11 @@ var (
 		var pairs []model.PairsCoins
 		var total int64
 
-		if err := db.DB.Model(&model.PairsCoins{}).Count(&total).Error; err != nil {
+		if err := database.MainDB.Model(&model.PairsCoins{}).Count(&total).Error; err != nil {
 			return nil, 0, err
 		}
 
-		if err := db.DB.Find(&pairs).Error; err != nil {
+		if err := database.MainDB.Find(&pairs).Error; err != nil {
 			return nil, 0, err
 		}
 

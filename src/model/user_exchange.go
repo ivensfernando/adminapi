@@ -3,10 +3,11 @@ package model
 import "time"
 
 type UserExchange struct {
-	ID     uint   `gorm:"primaryKey" json:"id"`
-	UserID string `gorm:"not null;index:idx_user_exchange,unique" json:"user_id"`
-
-	UserIDUINT        uint      `gorm:"not null;index:idx_user_exchange,unique" json:"user_id"`
+	ID     uint `gorm:"primaryKey" json:"id"`
+	UserID uint `gorm:"not null;index:idx_user_exchange,unique" json:"user_id"`
+	// LegacyUserID keeps the previous identifier used before the User model existed.
+	// It remains available for backward compatibility but is no longer used as a key.
+	LegacyUserID      string    `gorm:"size:60;column:legacy_user_id" json:"legacy_user_id,omitempty"`
 	ExchangeID        uint      `gorm:"not null;index:idx_user_exchange,unique" json:"exchange_id"`
 	APIKeyHash        string    `gorm:"column:api_key;type:text" json:"-"`
 	APISecretHash     string    `gorm:"column:api_secret;type:text" json:"-"`
