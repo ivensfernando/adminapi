@@ -648,3 +648,56 @@ func (r *OrderRepository) UpdateStatusWithAutoLog(
 		return nil
 	})
 }
+
+func (r *OrderRepository) FindByExternalIDAndUserID(
+	ctx context.Context,
+	userID uint,
+	externalID uint,
+) (*model.Order, error) {
+
+	logger.WithFields(map[string]interface{}{
+		"repo":        "OrderRepository",
+		"op":          "FindByExternalIDAndUser",
+		"user_id":     userID,
+		"external_id": externalID,
+	}).Debug("Fetching order by external ID and user")
+
+	var order model.Order
+
+	err := r.db.WithContext(ctx).
+		Where("external_id = ? AND user_id = ?", externalID, userID).
+		Order("created_at DESC").
+		First(&order).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.WithFields(map[string]interface{}{
+				"repo":        "OrderRepository",
+				"op":          "FindByExternalIDAndUser",
+				"user_id":     userID,
+				"external_id": externalID,
+			}).Info("Order not found by external ID and user")
+
+			return nil, nil
+		}
+
+		logger.WithFields(map[string]interface{}{
+			"repo":        "OrderRepository",
+			"op":          "FindByExternalIDAndUser",
+			"user_id":     userID,
+			"external_id": externalID,
+		}).WithError(err).Error("Failed to fetch order by external ID and user")
+
+		return nil, err
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"repo":        "OrderRepository",
+		"op":          "FindByExternalIDAndUser",
+		"user_id":     userID,
+		"external_id": externalID,
+		"order_id":    order.ID,
+	}).Debug("Order fetched successfully by external ID and user")
+
+	return &order, nil
+}

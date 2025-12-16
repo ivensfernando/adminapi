@@ -170,6 +170,35 @@ paths:
         '401':
           description: Unauthorized
 
+  /api/v1/me/change-password:
+    post:
+      tags: [Authentication]
+      summary: Change password for current user
+      security:
+        - SecretHeader: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordPayload'
+      responses:
+        '200':
+          description: Password updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: password updated
+        '400':
+          description: Invalid payload
+        '401':
+          description: Unauthorized
+
   /api/v1/trades:
     get:
       tags: [Trades]
@@ -758,6 +787,16 @@ components:
           type: string
         avatar_url:
           type: string
+    ChangePasswordPayload:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+          format: password
+        new_password:
+          type: string
+          format: password
     Trade:
       type: object
       properties:

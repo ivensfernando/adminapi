@@ -10,6 +10,11 @@ type UpdateUserPayload struct {
 	AvatarURL *string `json:"avatar_url,omitempty"`
 }
 
+type ChangePasswordPayload struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
 type UserResponse struct {
 	ID        uint   `json:"id"`
 	Username  string `json:"username"`

@@ -50,6 +50,7 @@ func StartServer(port string) {
 
 			r.Get("/me", handler.MeHandler())
 			r.Put("/me", handler.UpdateUserHandler())
+			r.Post("/me/change-password", handler.ChangePasswordHandler())
 			r.Get("/logout", handler.LogoutHandler())
 			r.Get("/orders", handler.DefaultSearchOrdersHandler())
 

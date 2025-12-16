@@ -26,7 +26,7 @@ func FirstLetterUpper(s string) string {
 func OrderController(
 	ctx context.Context,
 	phemexClient *connectors.Client,
-	user string,
+	user *model.User,
 	orderSizePercent int,
 	exchangeID uint,
 ) error {
@@ -65,7 +65,7 @@ func OrderController(
 	signal := signals[0]
 	symbol := NormalizeToUSDT(signal.Symbol)
 	logger.WithFields(map[string]interface{}{
-		"user":          user,
+		"user":          user.Username,
 		"signal_id":     signal.ID,
 		"signal.Symbol": signal.Symbol,
 		"symbol":        symbol,
@@ -76,7 +76,7 @@ func OrderController(
 	// 2) Check if an order already exists for this signal
 	// ------------------------------------------------------------------
 
-	existingOrder, err := orderRepo.FindByExternalIDAndUser(ctx, user, signal.ID)
+	existingOrder, err := orderRepo.FindByExternalIDAndUserID(ctx, user.ID, signal.ID)
 	if err != nil {
 		logger.WithError(err).Error("failed to fetch latest trading signal")
 		Capture(
@@ -123,7 +123,7 @@ func OrderController(
 	// ------------------------------------------------------------------
 
 	newOrder := &model.Order{
-		UserID:     user,
+		UserID:     user.ID,
 		ExchangeID: exchangeID, // Phemex
 		ExternalID: signal.ID,
 		Symbol:     symbol,                           //signal.Symbol, "BTCUSDT"
@@ -168,6 +168,7 @@ func OrderController(
 	// ------------------------------------------------------------------
 	quantityStr := strconv.FormatFloat(newOrder.Quantity, 'f', 4, 64)
 
+	// TODO: ADD STOP LOSS
 	resp, err := phemexClient.PlaceOrder(
 		newOrder.Symbol,
 		newOrder.Side,
