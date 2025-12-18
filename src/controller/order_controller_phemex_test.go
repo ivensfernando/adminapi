@@ -245,7 +245,12 @@ func buildPhemexTestClient(t *testing.T, cfg serverConfig) *connectors.Client {
 	return nil //connectors.NewClientWithResty("k", "s", server.URL, restyClient)
 }
 
+// TestOrderControllerFlows exercises the different Phemex order controller
+// scenarios to ensure signals and orders are handled correctly across error
+// and success paths.
 func TestOrderControllerFlows(t *testing.T) {
+	// Table-driven scenarios covering the most important branches of the
+	// order execution flow for the Phemex exchange.
 	tests := []struct {
 		name                  string
 		tradingRepo           *mockTradingSignalRepo
@@ -259,6 +264,8 @@ func TestOrderControllerFlows(t *testing.T) {
 		expectedPhemexCreates int
 	}{
 		{
+			// success flow validates that a new order is created and
+			// moves from pending to filled when everything succeeds.
 			name:                  "success flow",
 			tradingRepo:           &mockTradingSignalRepo{signals: []externalmodel.TradingSignal{{ID: 10, OrderID: "long", Symbol: "BTCUSDT", Action: "buy", ExchangeName: "phemex"}}},
 			orderRepo:             &mockOrderRepo{},
@@ -270,6 +277,8 @@ func TestOrderControllerFlows(t *testing.T) {
 			expectedPhemexCreates: 1,
 		},
 		{
+			// trading signal repo error ensures repository failures are
+			// propagated back to the caller.
 			name:          "trading signal repo error",
 			tradingRepo:   &mockTradingSignalRepo{err: errors.New("fail")},
 			orderRepo:     &mockOrderRepo{},
@@ -279,6 +288,8 @@ func TestOrderControllerFlows(t *testing.T) {
 			expectError:   true,
 		},
 		{
+			// no signals returns nil confirms that absent signals do not
+			// generate orders or errors.
 			name:          "no signals returns nil",
 			tradingRepo:   &mockTradingSignalRepo{},
 			orderRepo:     &mockOrderRepo{},
@@ -289,6 +300,8 @@ func TestOrderControllerFlows(t *testing.T) {
 			expectOrder:   false,
 		},
 		{
+			// existing order filled checks that already completed orders
+			// are skipped without creating new ones.
 			name:          "existing order filled",
 			tradingRepo:   &mockTradingSignalRepo{signals: []externalmodel.TradingSignal{{ID: 10, OrderID: "long", Symbol: "BTCUSDT", Action: "buy", ExchangeName: "phemex"}}},
 			orderRepo:     &mockOrderRepo{findOrder: &model.Order{ID: 99, Status: model.OrderExecutionStatusFilled}},
@@ -298,6 +311,8 @@ func TestOrderControllerFlows(t *testing.T) {
 			expectOrder:   false,
 		},
 		{
+			// find order error verifies failures when fetching existing
+			// orders are surfaced.
 			name:          "find order error",
 			tradingRepo:   &mockTradingSignalRepo{signals: []externalmodel.TradingSignal{{ID: 10, OrderID: "long", Symbol: "BTCUSDT", Action: "buy", ExchangeName: "phemex"}}},
 			orderRepo:     &mockOrderRepo{findErr: errors.New("find err")},
@@ -307,6 +322,8 @@ func TestOrderControllerFlows(t *testing.T) {
 			expectError:   true,
 		},
 		{
+			// create order error ensures persistence failures during new
+			// order creation are handled.
 			name:          "create order error",
 			tradingRepo:   &mockTradingSignalRepo{signals: []externalmodel.TradingSignal{{ID: 10, OrderID: "long", Symbol: "BTCUSDT", Action: "buy", ExchangeName: "phemex"}}},
 			orderRepo:     &mockOrderRepo{createErr: errors.New("create err")},
@@ -316,6 +333,8 @@ func TestOrderControllerFlows(t *testing.T) {
 			expectError:   true,
 		},
 		{
+			// close positions error checks that failures when closing
+			// existing positions put the order into an error state.
 			name:           "close positions error",
 			tradingRepo:    &mockTradingSignalRepo{signals: []externalmodel.TradingSignal{{ID: 10, OrderID: "long", Symbol: "BTCUSDT", Action: "buy", ExchangeName: "phemex"}}},
 			orderRepo:      &mockOrderRepo{},
@@ -326,6 +345,8 @@ func TestOrderControllerFlows(t *testing.T) {
 			expectedStatus: []string{model.OrderExecutionStatusError},
 		},
 		{
+			// place order http error simulates HTTP errors from the
+			// Phemex endpoint during placement.
 			name:           "place order http error",
 			tradingRepo:    &mockTradingSignalRepo{signals: []externalmodel.TradingSignal{{ID: 10, OrderID: "long", Symbol: "BTCUSDT", Action: "buy", ExchangeName: "phemex"}}},
 			orderRepo:      &mockOrderRepo{},
@@ -336,6 +357,8 @@ func TestOrderControllerFlows(t *testing.T) {
 			expectedStatus: []string{model.OrderExecutionStatusError},
 		},
 		{
+			// place order non zero code asserts non-zero API codes are
+			// treated as failures when placing new orders.
 			name:           "place order non zero code",
 			tradingRepo:    &mockTradingSignalRepo{signals: []externalmodel.TradingSignal{{ID: 10, OrderID: "long", Symbol: "BTCUSDT", Action: "buy", ExchangeName: "phemex"}}},
 			orderRepo:      &mockOrderRepo{},
@@ -346,6 +369,8 @@ func TestOrderControllerFlows(t *testing.T) {
 			expectedStatus: []string{model.OrderExecutionStatusError},
 		},
 		{
+			// place order bad json ensures malformed JSON responses are
+			// surfaced as errors.
 			name:           "place order bad json",
 			tradingRepo:    &mockTradingSignalRepo{signals: []externalmodel.TradingSignal{{ID: 10, OrderID: "long", Symbol: "BTCUSDT", Action: "buy", ExchangeName: "phemex"}}},
 			orderRepo:      &mockOrderRepo{},
@@ -356,6 +381,8 @@ func TestOrderControllerFlows(t *testing.T) {
 			expectedStatus: []string{model.OrderExecutionStatusError},
 		},
 		{
+			// phemex repo create error checks persistence failures when
+			// saving the Phemex order response locally.
 			name:           "phemex repo create error",
 			tradingRepo:    &mockTradingSignalRepo{signals: []externalmodel.TradingSignal{{ID: 10, OrderID: "long", Symbol: "BTCUSDT", Action: "buy", ExchangeName: "phemex"}}},
 			orderRepo:      &mockOrderRepo{},
@@ -369,6 +396,8 @@ func TestOrderControllerFlows(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			// Swap repositories for the duration of the test case and
+			// restore the originals afterward.
 			originalTrading := newTradingSignalRepo
 			originalPhemex := newPhemexOrderRepo
 			originalException := newExceptionRepo
@@ -387,6 +416,8 @@ func TestOrderControllerFlows(t *testing.T) {
 
 			user := &model.User{ID: 1, Username: "tester"}
 
+			// Execute the controller logic with the configured test
+			// client and capture any returned error for assertions.
 			err := OrderController(context.Background(), tc.client, user, 50, 1, "BTCUSDT", "phemex")
 			if tc.expectError && err == nil {
 				t.Fatalf("expected error, got nil")
@@ -395,6 +426,8 @@ func TestOrderControllerFlows(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
+			// Validate whether an order was created based on the scenario
+			// expectations.
 			if tc.expectOrder && tc.orderRepo.order == nil {
 				t.Fatalf("expected order to be created")
 			}
@@ -402,6 +435,8 @@ func TestOrderControllerFlows(t *testing.T) {
 				t.Fatalf("did not expect order creation")
 			}
 			if len(tc.expectedStatus) > 0 {
+				// Ensure the controller progressed through the expected
+				// status transitions.
 				if len(tc.orderRepo.statuses) != len(tc.expectedStatus) {
 					t.Fatalf("expected statuses %v got %v", tc.expectedStatus, tc.orderRepo.statuses)
 				}
@@ -411,9 +446,12 @@ func TestOrderControllerFlows(t *testing.T) {
 					}
 				}
 			}
-
-			if tc.expectedPhemexCreates > 0 && len(tc.phemexRepo.created) != tc.expectedPhemexCreates {
-				t.Fatalf("expected %d phemex orders, got %d", tc.expectedPhemexCreates, len(tc.phemexRepo.created))
+			if tc.expectedPhemexCreates > 0 {
+				// Confirm we persisted the expected number of Phemex
+				// orders when successful flows complete.
+				if len(tc.phemexRepo.created) != tc.expectedPhemexCreates {
+					t.Fatalf("expected %d phemex orders, got %d", tc.expectedPhemexCreates, len(tc.phemexRepo.created))
+				}
 			}
 		})
 	}
