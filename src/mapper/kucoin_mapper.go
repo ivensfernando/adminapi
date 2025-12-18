@@ -6,7 +6,7 @@ import (
 
 	logger "github.com/sirupsen/logrus"
 
-	"adminapi/src/model"
+	"strategyexecutor/src/model"
 )
 
 // MapKucoinResponseToModel converts a KuCoin futures order response into a normalized model.

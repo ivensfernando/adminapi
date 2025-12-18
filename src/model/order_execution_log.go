@@ -12,7 +12,7 @@ const (
 	//OrderExecutionStatusRejected   = "rejected"
 	//OrderExecutionStatusPartFilled = "part_filled"
 	OrderExecutionStatusFilled        = "filled"
-	OrderExecutionStatusClosed        = "closed"
+	OrderExecutionStatusCanceled      = "canceled"
 	OrderExecutionStatusError         = "error"
 	OrderExecutionStatusCanceledError = "canceled_error"
 )

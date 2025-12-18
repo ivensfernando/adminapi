@@ -12,53 +12,10 @@ type UserExchange struct {
 	APIKeyHash        string    `gorm:"column:api_key;type:text" json:"-"`
 	APISecretHash     string    `gorm:"column:api_secret;type:text" json:"-"`
 	APIPassphraseHash string    `gorm:"column:api_passphrase;type:text" json:"-"`
+	OrderSizePercent  int       `gorm:"column:order_size_percent" json:"order_size_percent"`
 	RunOnServer       bool      `gorm:"column:run_on_server" json:"run_on_server"`
-	ShowInForms       bool      `gorm:"not null;default:false" json:"show_in_forms"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
 
-	User     *User     `gorm:"constraint:OnDelete:CASCADE" json:"-"`
 	Exchange *Exchange `gorm:"constraint:OnDelete:CASCADE" json:"exchange"`
-}
-
-type UpsertUserExchangePayload struct {
-	ExchangeID    uint   `json:"exchangeId"`
-	APIKey        string `json:"apiKey"`
-	APISecret     string `json:"apiSecret"`
-	APIPassphrase string `json:"apiPassphrase"`
-	ShowInForms   bool   `json:"showInForms"`
-	RunOnServer   bool   `json:"runOnServer"`
-}
-
-type UserExchangeResponse struct {
-	ID               uint   `json:"id"`
-	ExchangeID       uint   `json:"exchangeId"`
-	ExchangeName     string `json:"exchangeName,omitempty"`
-	ShowInForms      bool   `json:"showInForms"`
-	RunOnServer      bool   `json:"runOnServer"`
-	HasAPIKey        bool   `json:"hasApiKey"`
-	HasAPISecret     bool   `json:"hasApiSecret"`
-	HasAPIPassphrase bool   `json:"hasApiPassphrase"`
-}
-
-func NewUserExchangeResponse(ue *UserExchange) UserExchangeResponse {
-	if ue == nil {
-		return UserExchangeResponse{}
-	}
-
-	resp := UserExchangeResponse{
-		ID:               ue.ID,
-		ExchangeID:       ue.ExchangeID,
-		ShowInForms:      ue.ShowInForms,
-		RunOnServer:      ue.RunOnServer,
-		HasAPIKey:        ue.APIKeyHash != "",
-		HasAPISecret:     ue.APISecretHash != "",
-		HasAPIPassphrase: ue.APIPassphraseHash != "",
-	}
-
-	if ue.Exchange != nil {
-		resp.ExchangeName = ue.Exchange.Name
-	}
-
-	return resp
 }

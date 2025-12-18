@@ -106,8 +106,8 @@ func DecryptString(ciphertext string) (string, error) {
 	return string(plaintext), nil
 }
 
-func ResetEncryptionKeyForTests() {
-	loadKeyOnce = sync.Once{}
-	encryptionKey = nil
-	loadKeyErr = nil
-}
+//func ResetEncryptionKeyForTests() {
+//	loadKeyOnce = sync.Once{}
+//	encryptionKey = nil
+//	loadKeyErr = nil
+//}

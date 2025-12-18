@@ -1,18 +1,16 @@
 package server
 
 import (
-	"adminapi/src/auth"
-	"adminapi/src/handler"
-	"adminapi/src/lookup"
 	"context"
 	"errors"
-	"github.com/go-chi/chi/v5"
-	logger "github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	logger "github.com/sirupsen/logrus"
 )
 
 func StartServer(port string) {
@@ -20,55 +18,13 @@ func StartServer(port string) {
 	r := chi.NewRouter()
 	// === Global Middleware ===
 
-	r.Use(auth.CorsHandler())
-
-	r.Use(requestLogger())
-	r.Use(sharedSecretAuth()) // <- Our custom auth middleware
-
 	// Public routes
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		if _, err := w.Write([]byte("OK")); err != nil {
 			logger.WithError(err).Error(" \"/health error")
 		}
 	})
 
-	r.Post("/trading/webhook/{token}", handler.AlertHandler())
-
-	r.Route("/api/v1", func(r chi.Router) {
-		r.Route("/lookup", func(r chi.Router) {
-			r.Get("/exchanges", lookup.ListExchanges())
-			r.Get("/pairs", lookup.ListPairs())
-		})
-
-		r.Post("/auth/register", handler.RegisterHandler())
-		r.Post("/auth/login", handler.LoginHandler())
-
-		// Protected routes (JWT required)
-		r.Group(func(r chi.Router) {
-
-			r.Use(auth.RequireAuthMiddleware()) // ✅ <— protect the routes
-
-			r.Get("/me", handler.MeHandler())
-			r.Put("/me", handler.UpdateUserHandler())
-			r.Post("/me/change-password", handler.ChangePasswordHandler())
-			r.Get("/logout", handler.LogoutHandler())
-			r.Get("/orders", handler.DefaultSearchOrdersHandler())
-
-			r.Route("/user-exchanges", func(r chi.Router) {
-				r.Post("/", handler.UpsertUserExchangeHandler())
-				r.Get("/forms", handler.ListFormUserExchangesHandler())
-				r.Post("/{exchangeID}/test", handler.TestMexcConnectionHandler())
-				r.Delete("/{exchangeID}", handler.DeleteUserExchangeHandler())
-			})
-
-			r.Post("/webhooks", handler.CreateWebhookHandler())
-			r.Get("/webhooks", handler.ListWebhooksHandler())
-			r.Put("/webhooks/{id}", handler.UpdateWebhookHandler())
-			r.Delete("/webhooks/{id}", handler.DeleteWebhookHandler())
-			r.Get("/webhook-alerts", handler.ListWebhookAlertsHandler())
-
-		})
-	})
 	// Graceful server
 	// Server setup
 	addr := ":" + port

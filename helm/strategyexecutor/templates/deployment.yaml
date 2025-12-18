@@ -1,0 +1,71 @@
+{{- if .Values.strategyexecutor.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "strategyexecutor.fullname" . }}
+  labels:
+    app: {{ template "strategyexecutor.name" . }}
+    chart: {{ template "strategyexecutor.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "strategyexecutor.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "strategyexecutor.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.strategyexecutor.image }}:{{ .Values.strategyexecutor.tag }}"
+          imagePullPolicy: {{ .Values.strategyexecutor.pullPolicy }}
+          env:
+          {{- range $key, $value := .Values.strategyexecutor.env }}
+          - name: {{ $key | quote }}
+            value: {{ $value | quote }}
+          {{- end }}
+          {{- range $key, $value := .Values.strategyexecutor.envsec }}
+          - name: {{ $key | quote }}
+            valueFrom:
+              secretKeyRef:
+                name: strategyexecutor-secret
+                key: {{ $value | quote }}
+          {{- end }}
+          ports:
+            - containerPort: {{ .Values.service.internalPort }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.healthcheck.url }}
+              port: {{ .Values.healthcheck.port }}
+            initialDelaySeconds: 120
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.healthcheck.url }}
+              port: {{ .Values.healthcheck.port }}
+            initialDelaySeconds: 30
+            timeoutSeconds: 3
+            periodSeconds: 5
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+{{- end }}

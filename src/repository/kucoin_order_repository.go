@@ -7,8 +7,8 @@ import (
 	logger "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	"adminapi/src/database"
-	"adminapi/src/model"
+	"strategyexecutor/src/database"
+	"strategyexecutor/src/model"
 )
 
 // KucoinOrderRepository handles persistence for KucoinOrder entities.

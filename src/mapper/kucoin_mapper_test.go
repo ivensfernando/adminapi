@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"adminapi/src/model"
+	"strategyexecutor/src/model"
 )
 
 func TestMapKucoinResponseToModel(t *testing.T) {

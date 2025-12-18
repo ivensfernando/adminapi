@@ -1,18 +1,17 @@
 package main
 
 import (
-	"adminapi/src/database"
-	"adminapi/src/server"
+	"context"
 	"fmt"
-	logger "github.com/sirupsen/logrus"
 	"os"
+	"os/signal"
+	"strategyexecutor/src/database"
+	"strategyexecutor/src/executors"
 	"strings"
+	"syscall"
 	"time"
-)
 
-var (
-	PORT     = os.Getenv("SERVER_PORT")
-	APP_NAME = os.Getenv("APP_NAME")
+	logger "github.com/sirupsen/logrus"
 )
 
 func SetupLogger() {
@@ -34,6 +33,8 @@ func main() {
 	//db.InitDB(log) // ✅ MUST be here before any DB access
 	defer handlePanic()
 
+	//config := server.GetConfig()
+
 	// Initialize main (read/write) database
 	if err := database.InitMainDB(); err != nil {
 		logger.WithError(err).Fatal("Failed to connect to database")
@@ -44,12 +45,28 @@ func main() {
 		logger.WithError(err).Fatal("Failed to connect to database")
 	}
 
-	server.StartServer(PORT)
+	//server.StartServer(config.Port)
+
+	//config := executors.GetConfig()
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+	defer stop()
+	targetExchange := "phemex"
+	logger.WithField("targetExchange", targetExchange).Info("Starting strategy executor for exchange")
+
+	if err := executors.StartLoop(ctx); err != nil {
+		logger.WithError(err).Error("Failed to start minute loop")
+		return
+	}
+
 }
 
 func handlePanic() {
 	if r := recover(); r != nil {
-		logger.WithError(fmt.Errorf("%+v", r)).Error(fmt.Sprintf("Application %s panic", APP_NAME))
+		logger.WithError(fmt.Errorf("%+v", r)).Error(fmt.Sprintf("Application panic"))
 	}
 	//nolint
 	time.Sleep(time.Second * 5)

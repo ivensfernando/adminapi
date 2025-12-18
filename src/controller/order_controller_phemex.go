@@ -1,11 +1,12 @@
 package controller
 
 import (
-	"adminapi/src/mapper"
-	"adminapi/src/risk"
 	"context"
 	"encoding/json"
 	"fmt"
+	"strategyexecutor/src/externalmodel"
+	"strategyexecutor/src/mapper"
+	"strategyexecutor/src/risk"
 	"strconv"
 	"strings"
 	"time"
@@ -13,9 +14,45 @@ import (
 	"github.com/shopspring/decimal"
 	logger "github.com/sirupsen/logrus"
 
-	"adminapi/src/connectors"
-	"adminapi/src/model"
-	"adminapi/src/repository"
+	"strategyexecutor/src/connectors"
+	"strategyexecutor/src/model"
+	"strategyexecutor/src/repository"
+)
+
+type tradingSignalRepository interface {
+	FindLatest(ctx context.Context, symbol, exchangeName string, limit int) ([]externalmodel.TradingSignal, error)
+}
+
+type phemexOrderRepository interface {
+	Create(ctx context.Context, order *model.PhemexOrder) error
+}
+
+type exceptionRepository interface {
+	Create(ctx context.Context, exception *model.Exception) error
+}
+
+type orderRepository interface {
+	FindByExternalIDAndUserID(ctx context.Context, userID uint, externalID uint) (*model.Order, error)
+	CreateWithAutoLog(ctx context.Context, order *model.Order) error
+	UpdateStatusWithAutoLog(ctx context.Context, orderID uint, newStatus string, reason string) error
+	UpdatePriceAutoLog(ctx context.Context, orderID uint, price *float64, reason string) error
+	UpdateResp(ctx context.Context, orderID uint, resp string, status string) error
+	FindByExchangeIDAndUserID(ctx context.Context, userID uint, exchangeID uint) (*model.Order, error)
+}
+
+var (
+	newTradingSignalRepo = func() tradingSignalRepository {
+		return repository.NewTradingSignalRepository()
+	}
+	newPhemexOrderRepo = func() phemexOrderRepository {
+		return repository.NewPhemexOrderRepository()
+	}
+	newExceptionRepo = func() exceptionRepository {
+		return repository.NewExceptionRepository()
+	}
+	newOrderRepo = func() orderRepository {
+		return repository.NewOrderRepository()
+	}
 )
 
 func FirstLetterUpper(s string) string {
@@ -166,7 +203,7 @@ func OrderController(
 	// 4) Close all existing positions for this symbol on Phemex
 	// ------------------------------------------------------------------
 
-	if err := phemexClient.CloseAllPositions(newOrder.Symbol); err != nil {
+	if err := closeAllPositions(ctx, phemexClient, user, exchangeID, newOrder.Symbol); err != nil {
 		logger.WithError(err).
 			WithField("symbol", newOrder.Symbol).
 			Error("failed to close all positions")
@@ -585,7 +622,7 @@ func closeAllPositions(
 				map[string]interface{}{
 					"symbol": p.Symbol,
 					"side":   p.Side,
-					"qty":    p.SizeRq,
+					//"qty":    p.,
 				},
 			)
 			_ = orderRepo.UpdateStatusWithAutoLog(
@@ -597,7 +634,7 @@ func closeAllPositions(
 
 			return err
 		} else {
-			if err := orderRepo.UpdateStatusWithAutoLog(ctx, order.ID, model.OrderExecutionStatusPending, "order closed placed on Phemex successfully"); err != nil {
+			if err := orderRepo.UpdateStatusWithAutoLog(ctx, order.ID, model.OrderExecutionStatusPending, "order placed on Phemex successfully"); err != nil {
 			}
 		}
 

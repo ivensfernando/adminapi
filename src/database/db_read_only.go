@@ -1,14 +1,14 @@
 package database
 
 import (
-	"adminapi/src/externalmodel"
 	"fmt"
+	"strategyexecutor/src/externalmodel"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	//"adminapi/src/externalmodel"
+	//"strategyexecutor/src/externalmodel"
 
 	"github.com/sirupsen/logrus"
 )
@@ -51,7 +51,7 @@ func InitReadOnlyDB() error {
 		Raw("SELECT current_database(), current_schema()").
 		Row().
 		Scan(&dbName, &schema); err != nil {
-		return fmt.Errorf("failed to query current database/schema on ReadOnlyDB: %w", err)
+		return fmt.Errorf("failed to query current db/schema on ReadOnlyDB: %w", err)
 	}
 
 	logrus.WithFields(map[string]interface{}{"dbName": dbName, "schema": schema}).Info("[ReadOnlyDB] connected to database=%s schema=%s")

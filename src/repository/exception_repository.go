@@ -1,13 +1,13 @@
 package repository
 
 import (
-	"adminapi/src/database"
 	"context"
+	"strategyexecutor/src/database"
 
 	logger "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	"adminapi/src/model"
+	"strategyexecutor/src/model"
 )
 
 // ExceptionRepository handles persistence of system exceptions.
@@ -17,7 +17,7 @@ type ExceptionRepository struct {
 
 // NewExceptionRepository creates a new repository instance.
 func NewExceptionRepository() *ExceptionRepository {
-	//return &ExceptionRepository{database: database}
+	//return &ExceptionRepository{db: db}
 	return &ExceptionRepository{
 		db: database.MainDB,
 	}

@@ -1,10 +1,10 @@
 package connectors_test
 
 import (
-	"adminapi/src/connectors"
 	"context"
 	"fmt"
 	"math"
+	"strategyexecutor/src/connectors"
 	"strings"
 	"testing"
 	"time"
@@ -159,7 +159,7 @@ func TestKrakenFutures_BasicFlow_MarketOrder_StopLoss_Verify(t *testing.T) {
 		const slPct = 0.30
 
 		// CalcStopLoss expects action = "buy" or "sell" (your existing helper).
-		//stopPrice = math.Round(connectors.CalcStopLoss(entryPrice, slPct, entrySide))
+		stopPrice = math.Round(connectors.CalcStopLoss(entryPrice, slPct, entrySide))
 
 		logger.Infof("stopPrice: %f", stopPrice)
 

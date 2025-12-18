@@ -1,8 +1,9 @@
 package database
 
 import (
-	"adminapi/src/model"
 	"fmt"
+	"strategyexecutor/src/database/migrations"
+	"strategyexecutor/src/model"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -52,6 +53,13 @@ func InitMainDB() error {
 
 	logrus.Info("[database] MainDB connection established")
 
+	// Prepare legacy user columns before AutoMigrate so we can safely
+	// convert string-based user_id columns into numeric IDs without
+	// failing casts.
+	if err := migrations.PrepareLegacyUserColumns(MainDB); err != nil {
+		return fmt.Errorf("failed to prepare legacy user columns: %w", err)
+	}
+
 	// Run AutoMigrate only on the main database.
 	// Add here all models that belong to the write-side schema.
 	if err := MainDB.AutoMigrate(
@@ -63,13 +71,17 @@ func InitMainDB() error {
 		&model.PhemexOrder{},
 		&model.Exception{},
 		&model.UserExchange{},
-		&model.Position{},
-		&model.Webhook{},
-		&model.WebhookAlert{},
+		&model.TradingViewNewsEvent{},
+		&model.OHLCVCrypto1m{},
+		&model.OHLCVCrypto1h{},
 		//&model.Strategy{},
 		//&model.StrategyAction{},
 	); err != nil {
 		return fmt.Errorf("failed to run migrations on MainDB: %w", err)
+	}
+
+	if err := migrations.Run(MainDB); err != nil {
+		return fmt.Errorf("failed to run data migrations on MainDB: %w", err)
 	}
 
 	logrus.Info("[database] MainDB migrations completed")

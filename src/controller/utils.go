@@ -1,12 +1,12 @@
 package controller
 
 import (
-	"adminapi/src/model"
-	"adminapi/src/repository"
 	"context"
 	"encoding/json"
 	logger "github.com/sirupsen/logrus"
 	"runtime/debug"
+	"strategyexecutor/src/model"
+	"strategyexecutor/src/repository"
 	"strings"
 	"time"
 )
@@ -71,21 +71,6 @@ func NormalizeToUSDT(symbol string) string {
 	}
 
 	// Otherwise, return as is (do not force)
-	return s
-}
-
-// NormalizeToKucoinFuturesSymbol formats a symbol to the KuCoin futures pattern (e.g. BTCUSDTM).
-// It uppercases, ensures USDT as quote, converts BTC -> XBT, and appends the required trailing "M".
-func NormalizeToKucoinFuturesSymbol(symbol string) string {
-	s := NormalizeToUSDT(symbol)
-	if strings.HasPrefix(s, "BTC") {
-		s = "XBT" + strings.TrimPrefix(s, "BTC")
-	}
-
-	if !strings.HasSuffix(s, "M") {
-		s += "M"
-	}
-
 	return s
 }
 

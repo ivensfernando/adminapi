@@ -1,0 +1,56 @@
+{{- if .Values.cronJob.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "{{ template "strategyexecutor.fullname" . }}-job"
+  labels:
+    app: {{ template "strategyexecutor.name" . }}
+    chart: {{ template "strategyexecutor.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  schedule: {{ .Values.cronJob.schedule | quote }}
+  concurrencyPolicy: {{ .Values.cronJob.concurrencyPolicy }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: "{{ template "strategyexecutor.fullname" . }}-{{ .Values.cronJob.cmd_name }}-job"
+            release: {{ .Release.Name }}
+        spec:
+          imagePullSecrets:
+            - name: regcred
+          containers:
+            - name: {{ .Chart.Name }}
+              image: "{{ .Values.cronJob.image }}:{{ .Values.cronJob.tag }}"
+              imagePullPolicy: {{ .Values.strategyexecutor.pullPolicy }}
+              env:
+              {{- range $key, $value := .Values.cronJob.env }}
+              - name: {{ $key | quote }}
+                value: {{ $value | quote }}
+              {{- end }}
+              {{- range $key, $value := .Values.cronJob.envsec }}
+              - name: {{ $key | quote }}
+                valueFrom:
+                  secretKeyRef:
+                    name: strategyexecutor-secret
+                    key: {{ $value | quote }}
+              {{- end }}
+              args: {{ .Values.cronJob.args }}
+              resources:
+{{ toYaml .Values.resources | indent 16 }}
+          restartPolicy: {{ .Values.cronJob.restartPolicy }}
+    {{- with .Values.nodeSelector }}
+          nodeSelector:
+{{ toYaml . | indent 12 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+          affinity:
+{{ toYaml . | indent 12 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+          tolerations:
+{{ toYaml . | indent 12 }}
+    {{- end }}
+{{- end }}

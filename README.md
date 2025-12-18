@@ -1,132 +1,93 @@
-# Biidin Admin API
+# strategyExecutor
 
-Biidin Admin API is an HTTP API for logging trades, managing exchange connections, and processing webhook alerts. The service secures client-facing endpoints with a shared `X-Secret-Key` header plus JWT cookies, and exposes a Swagger definition for the latest API contract.
 
-## Features
-- Health and readiness check at `/health`.
-- JWT-based authentication (register, login, logout, profile update) under `/api/v1/auth` and `/api/v1/me`.
-- CRUD APIs for trades at `/api/v1/trades` with bulk delete support.
-- Lookup endpoints for supported exchanges and trading pairs under `/api/v1/lookup`.
-- User exchange management with credential encryption and connection testing at `/api/v1/user-exchanges`.
-- Webhook management for outbound alerts and retrieval of received webhook alerts under `/api/v1/webhooks` and `/api/v1/webhook-alerts`.
-- Public trading webhook receiver at `/trading/webhook/{token}` for ingesting alerts without the shared secret header.
-- Local Swagger UI served from `docs/swagger.yaml` via `make swagger`.
 
-## Project structure
+## Getting started
+
+To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+
+Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+
+## Add your files
+
+* [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
+* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+
 ```
-trading-journal/
-├── main.go                # HTTP server entrypoint
-├── docs/swagger.yaml      # OpenAPI specification for the service
-├── src/
-│   ├── auth/              # JWT and middleware helpers
-│   ├── db/                # Database connection and migrations
-│   ├── handler/           # HTTP handlers for auth, trades, webhooks, etc.
-│   ├── lookup/            # Lookup providers for exchanges and pairs
-│   ├── model/             # GORM models
-│   ├── repository/        # Data access layer
-│   ├── security/          # Encryption helpers for stored secrets
-│   └── server/            # Router and middleware wiring
-├── db/migrations/         # SQL migrations (used by migrate CLI)
-├── Makefile               # Developer tooling (run, build, swagger, tests)
-└── docs/                  # API documentation assets
+cd existing_repo
+git remote add origin https://gitlab.com/ivensdeveloper/strategyexecutor.git
+git branch -M main
+git push -uf origin main
 ```
 
-## Prerequisites
-- Go 1.23+
-- Postgres with connection details provided via environment variables
-  - `PGHOST`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `PGPORT`
-- Secrets for authentication and request protection
-  - `JWT_SECRET` for signing tokens
-  - `SHARED_SECRET` for the `X-Secret-Key` middleware
+## Integrate with your tools
+
+* [Set up project integrations](https://gitlab.com/ivensdeveloper/strategyexecutor/-/settings/integrations)
+
+## Collaborate with your team
+
+* [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
+* [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
+* [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
+* [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
+* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+
+## Test and Deploy
+
+Use the built-in continuous integration in GitLab.
+
+* [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
+* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
+* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
+* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
+* [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+
+***
+
+# Editing this README
+
+When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+
+## Suggestions for a good README
+
+Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+
+## Name
+Choose a self-explaining name for your project.
+
+## Description
+Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+
+## Badges
+On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+
+## Visuals
+Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
 
 ## Installation
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/your-repo/trading-journal.git
-   cd trading-journal
-   ```
-2. Install dependencies:
-   ```bash
-   go mod tidy
-   ```
+Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
 
-## Running the API server
-1. Ensure Postgres is reachable and migrations are applied (see [Run the migration](#run-the-migration)).
-2. Start the server with the required environment variables:
-   ```bash
-   APP_NAME=trading-journal PORT=3010 \
-   PGHOST=localhost PGUSER=postgres PGPASSWORD=postgres PGDATABASE=trading_journal PGPORT=5432 \
-   JWT_SECRET=changeme SHARED_SECRET=supersecret \
-   go run main.go
-   ```
-3. The API will listen on `http://localhost:3010`.
+## Usage
+Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-Alternatively, use the Makefile shortcut:
-```bash
-make run_server
-```
+## Support
+Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
 
-## API base path and documentation
-- Public health checks remain at `/health`, and trading alerts are accepted at `/trading/webhook/{token}`.
-- All other client-facing endpoints (authentication, trades, lookup, user exchanges, webhooks, webhook alerts, etc.) are versioned under `/api/v1`.
+## Roadmap
+If you have ideas for releases in the future, it is a good idea to list them in the README.
 
-To explore the OpenAPI (Swagger) definition in a browser, run a local Swagger UI container that serves the bundled `docs/swagger.yaml`:
-```bash
-docker run --rm -p 8080:8080 -e SWAGGER_JSON=/swagger.yaml \
-  -v "$(pwd)/docs/swagger.yaml:/swagger.yaml" swaggerapi/swagger-ui
-```
+## Contributing
+State if you are open to contributions and what your requirements are for accepting them.
 
-Or use the Makefile shortcut:
-```bash
-make swagger
-```
+For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
 
-Then open http://localhost:8080 in your browser. The UI will load the specification from the mounted `docs/swagger.yaml` file.
+You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
 
-## Testing
-Run the full test suite:
-```bash
-go test ./...
-```
+## Authors and acknowledgment
+Show your appreciation to those who have contributed to the project.
 
-## KuCoin example (ccxt)
-The repository bundles a minimal ccxt-based KuCoin connector under `internal/connectors/kucoin.go`
-and a runnable example at `cmd/kucoin/main.go`. Provide your KuCoin API credentials through the
-following environment variables:
-
-```
-export KUCOIN_API_KEY="<key>"
-export KUCOIN_API_SECRET="<secret>"
-export KUCOIN_API_PASSPHRASE="<passphrase>"
-```
-
-Then run the example to fetch spot and futures balances:
-
-```
-make kucoin
-# or
-go run ./cmd/kucoin/main.go
-```
-
-The output prefixes balances with `spot_` or `futures_` to indicate the account type. API access
-must be enabled for both spot and futures on your key for the request to succeed.
-
-## Run the migration
-```bash
-export DATABASE_URL="postgres://user:password@localhost:5432/yourdb?sslmode=disable"
-migrate -database "$DATABASE_URL" -path database/migrations up
-# to check version
-migrate -database "$DATABASE_URL" -path database/migrations version
-# to rollback one step (if needed)
-# migrate -database "$DATABASE_URL" -path database/migrations down 1
-```
-
-If you use Docker Compose, you can run the CLI inside a Postgres or app container; or call migrations from a Makefile/CI step.
 ## License
-This project is licensed under the MIT License.
-````     $       
-             $
-            /!\       
-           / ! \     
-          /  |  \      
-         /   |   \                 
+For open source projects, say how it is licensed.
+
+## Project status
+If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.

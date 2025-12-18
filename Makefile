@@ -1,58 +1,183 @@
 include ./scripts/env.sh
 
-APP_NAME ?= trading-journal
-BIN_DIR ?= bin
-BINARY_NAME ?= $(BIN_DIR)/$(APP_NAME)
-KUCOIN_BINARY ?= $(BIN_DIR)/kucoin-example
-MAIN_PATH ?= ./main.go
-SWAGGER_FILE ?= ./docs/swagger.yaml
-SWAGGER_PORT ?= 8080
-SWAGGER_IMAGE ?= swaggerapi/swagger-ui
+# -----------------------------
+# Go parameters
+# -----------------------------
+GOCMD=go
+GOBUILD=$(GOCMD) build
+GOCLEAN=$(GOCMD) clean
+GOTEST=$(GOCMD) test
+GOGET=$(GOCMD) get
+GOMOD=$(GOCMD) mod
 
-.PHONY: help run run_server build build_server clean test test-modules test-handlers test-repositories swagger kucoin mexc build_kucoin
+# Main backend binary
+BINARY_NAME=strategyexecutor
+MAIN_PATH=./cmd/strategyexecutor
 
-help: ## Show available commands
-	@echo "Usage: make <target>" && echo && echo "Available targets:" && \
-	awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
+# Phemex CLI
+PHEMEX_CLI_BINARY=phemex-cli
+PHEMEX_CLI_PATH=./cmd/Phemex
 
-#run: kucoin ## Backwards-compatible alias for the KuCoin example
+# Build flags
+LDFLAGS=-ldflags "-s -w"
 
-kucoin: ## Run the KuCoin balances example
-	go run ./cmd/kucoin/main.go
+# Test flags
+TEST_FLAGS=-v -race
 
-mexc: ## Run the MEXC balances checker
-	go run ./cmd/mexc/main.go
+# Linter configuration
+GOLINT=golangci-lint
+LINT_FLAGS=run --timeout=5m
 
-phemex: ## Run the phemex balances checker
-	go run ./cmd/phemex/main.go
+# Colors for help and messages
+YELLOW := \033[1;33m
+GREEN  := \033[1;32m
+RED    := \033[1;31m
+BLUE   := \033[1;34m
+NC     := \033[0m # No Color
 
-run_server: ## Run the HTTP server (main.go)
-	APP_NAME=$(APP_NAME) PORT=$(PORT) go run $(MAIN_PATH)
+.PHONY: all build clean test coverage lint deps tidy vendor run run-phemex cli help
 
-#build: build_kucoin ## Build the KuCoin example binary
+# -----------------------------
+# Project Management
+# -----------------------------
+all: clean lint test build ## Run clean, lint, test, and build
 
-build_kucoin: ## Build the KuCoin example binary
-	mkdir -p $(BIN_DIR)
-	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o $(KUCOIN_BINARY) ./cmd/kucoin/main.go
+help: ## Show this help message
+	@echo '${YELLOW}Usage:${NC}'
+	@echo '  make ${GREEN}<target>${NC}'
+	@echo ''
+	@echo '${YELLOW}Targets:${NC}'
+	@awk '/^[a-zA-Z\-\_\.0-9]+:/ { \
+		helpMessage = match(lastLine, /^## (.*)/); \
+		if (helpMessage) { \
+			helpCommand = substr($$1, 0, index($$1, ":")-1); \
+			helpMessage = substr(lastLine, RSTART + 3, RLENGTH); \
+			printf "  ${GREEN}%-20s${NC} %s\n", helpCommand, helpMessage; \
+		} \
+	} \
+	{ lastLine = $$0 }' $(MAKEFILE_LIST)
+	@echo ''
+	@echo '${YELLOW}Examples:${NC}'
+	@echo '  ${BLUE}make build${NC}          - Build the backend'
+	@echo '  ${BLUE}make run${NC}            - Build and run the backend'
+	@echo '  ${BLUE}make run-phemex${NC}     - Run the Phemex CLI'
+	@echo '  ${BLUE}make test${NC}           - Run all tests'
+	@echo ''
+	@echo '${YELLOW}Development Workflow:${NC}'
+	@echo '  1. ${BLUE}make deps${NC}'
+	@echo '  2. ${BLUE}make lint${NC}'
+	@echo '  3. ${BLUE}make test${NC}'
+	@echo '  4. ${BLUE}make build${NC}'
+	@echo ''
 
-build_server: ## Build the HTTP server binary
-	mkdir -p $(BIN_DIR)
-	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o $(BINARY_NAME) $(MAIN_PATH)
+# -----------------------------
+# Build Operations
+# -----------------------------
+build: ## Build the backend binary
+	@echo "${BLUE}Building ${BINARY_NAME}...${NC}"
+	@$(GOBUILD) $(LDFLAGS) -o $(BINARY_NAME) $(MAIN_PATH)
+	@echo "${GREEN}Build successful!${NC}"
 
-clean: ## Remove built binaries
-	rm -rf $(BIN_DIR)
+build-phemex: ## Build the Phemex CLI
+	@echo "${BLUE}Building ${PHEMEX_CLI_BINARY}...${NC}"
+	@$(GOBUILD) $(LDFLAGS) -o $(PHEMEX_CLI_BINARY) $(PHEMEX_CLI_PATH)
+	@echo "${GREEN}Phemex CLI build successful!${NC}"
 
-test: ## Run all tests
-	go test ./... -v
+clean: ## Remove build artifacts and temporary files
+	@echo "${BLUE}Cleaning up...${NC}"
+	@$(GOCLEAN)
+	@rm -f $(BINARY_NAME)
+	@rm -f $(PHEMEX_CLI_BINARY)
+	@rm -f coverage.out
+	@echo "${GREEN}Cleanup complete!${NC}"
 
-test-modules: ## Run tests for application modules (src/*)
-	go test ./src/... -v
+# -----------------------------
+# Testing and Quality
+# -----------------------------
+test: ## Run tests with race detection
+	@echo "${BLUE}Running tests...${NC}"
+	@$(GOTEST) $(TEST_FLAGS) ./...
 
-test-handlers: ## Run tests for HTTP handlers only
-	go test ./src/handler/... -v
+coverage: ## Generate test coverage report
+	@echo "${BLUE}Generating coverage report...${NC}"
+	@$(GOTEST) -coverprofile=coverage.out ./...
+	@$(GOCMD) tool cover -html=coverage.out
+	@echo "${GREEN}Coverage report generated!${NC}"
 
-test-repositories: ## Run tests for repositories only
-	go test ./src/repository/... -v
+lint: ## Run code linter
+	@echo "${BLUE}Running linter...${NC}"
+	@$(GOLINT) $(LINT_FLAGS)
+	@echo "${GREEN}Lint check completed!${NC}"
 
-swagger: ## Serve Swagger UI using docs/swagger.yaml
-	docker run --rm -p $(SWAGGER_PORT):8080 -e SWAGGER_JSON=/swagger.yaml -v "$(PWD)/$(SWAGGER_FILE):/swagger.yaml" $(SWAGGER_IMAGE)
+# -----------------------------
+# Dependency Management
+# -----------------------------
+deps: ## Download project dependencies
+	@echo "${BLUE}Downloading dependencies...${NC}"
+	@$(GOGET) -v ./...
+	@echo "${GREEN}Dependencies downloaded!${NC}"
+
+tidy: ## Tidy up module dependencies
+	@echo "${BLUE}Tidying up dependencies...${NC}"
+	@$(GOMOD) tidy
+	@echo "${GREEN}Dependencies tidied!${NC}"
+
+vendor: ## Vendor dependencies
+	@echo "${BLUE}Vendoring dependencies...${NC}"
+	@$(GOMOD) vendor
+	@echo "${GREEN}Dependencies vendored!${NC}"
+
+# -----------------------------
+# Run targets
+# -----------------------------
+run: build ## Build and run the backend
+	@echo "${BLUE}Running ${BINARY_NAME}...${NC}"
+	@./$(BINARY_NAME)
+
+run-phemex: ## Build and run the Phemex CLI
+	@$(MAKE) build-phemex
+	@echo "${BLUE}Running ${PHEMEX_CLI_BINARY}...${NC}"
+	@./$(PHEMEX_CLI_BINARY)
+
+
+start: ## Start.
+	#./scripts/clean_db.sh
+	@echo "Sourcing env.sh..."
+	$(shell . ./scripts/env.sh; go run main.go)
+
+start_dev: ## Start.
+	@echo "Sourcing env.sh..."
+	$(shell . ./scripts/env_dev.sh; go run main.go)
+
+
+
+cmd_tv_news: ## Start.
+	@echo "Sourcing env.sh..."
+	$(shell . ./scripts/env.sh; go run cmd/main.go tvnews)
+
+
+cmd_ohlcv_crypto_btc_1h:
+	$(shell . ./scripts/scheduler/cmd_ohlcv_crypto_btc_1h.sh; go run cmd/main.go ohlcv_crypto)
+
+cmd_ohlcv_crypto_btc_1m:
+	$(shell . ./scripts/scheduler/cmd_ohlcv_crypto_btc_1m.sh; go run cmd/main.go ohlcv_crypto)
+
+
+docker-build:
+	docker build --build-arg -t strategyexecutor -f Dockerfile .
+
+docker: docker-build
+	docker run --env-file ./scripts/env_docker.sh -it -p 3010:3010 strategyexecutor
+
+docker_cmd:
+	docker build -t strategyexecutor-cmd -f Dockerfile.cmd .
+
+docker_tvnews: docker_cmd
+	docker run --env-file ./scripts/env_docker.sh -it -p 3003:3003 strategyexecutor-cmd -help
+
+secret:
+	kubectl apply -f helm/secret.yaml
+
+
+# Default target
+.DEFAULT_GOAL := help

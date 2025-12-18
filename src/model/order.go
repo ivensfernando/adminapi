@@ -2,36 +2,7 @@ package model
 
 import "time"
 
-const (
-	OrderStatusPending  = "pending"
-	OrderStatusExecuted = "executed"
-	OrderStatusFailed   = "failed"
-)
-
-//type Order struct {
-//	ID                 uint       `gorm:"primaryKey" json:"id"`
-//	StrategyActionID   uint       `gorm:"index" json:"strategy_action_id"`
-//	StrategyID         uint       `gorm:"index" json:"strategy_id"`
-//	UserID             uint       `gorm:"index" json:"user_id"`
-//	ExchangeID         uint       `gorm:"index" json:"exchange_id"`
-//	ExternalID         string     `gorm:"size:255" json:"external_id"`
-//	Symbol             string     `json:"symbol"`
-//	Side               string     `json:"side"`
-//	OrderType          string     `json:"order_type"`
-//	Quantity           float64    `json:"quantity"`
-//	Price              *float64   `json:"price,omitempty"`
-//	StopLossPct        float64    `json:"stop_loss_pct"`
-//	TakeProfitPct      float64    `json:"take_profit_pct"`
-//	Status             string     `gorm:"size:50;not null;default:pending" json:"status"`
-//	TriggeredByAlertID *uint      `json:"triggered_by_alert_id,omitempty"`
-//	ExecutedAt         *time.Time `json:"executed_at,omitempty"`
-//	CreatedAt          time.Time  `json:"created_at"`
-//	UpdatedAt          time.Time  `json:"updated_at"`
-//
-//	Action   *StrategyAction `gorm:"constraint:OnDelete:SET NULL" json:"action,omitempty"`
-//	Strategy *Strategy       `gorm:"constraint:OnDelete:SET NULL" json:"strategy,omitempty"`
-//}
-
+// Order represents an order that your system sends to the exchange.
 type Order struct {
 	ID uint `gorm:"primaryKey" json:"id"`
 	//StrategyActionID *uint `gorm:"index" json:"strategy_action_id"`
@@ -65,4 +36,9 @@ type Order struct {
 
 	// One-to-many relation: one order can have many execution logs
 	Logs []OrderLog `gorm:"foreignKey:OrderID" json:"order_logs,omitempty"`
+}
+
+// TableName allows you to control the exact table name for orders.
+func (Order) TableName() string {
+	return "orders"
 }

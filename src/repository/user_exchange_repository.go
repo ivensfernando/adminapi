@@ -1,139 +1,128 @@
 package repository
 
 import (
-	"errors"
-	"sync"
-
-	"adminapi/src/database"
-	"adminapi/src/model"
+	"context"
+	logger "github.com/sirupsen/logrus"
+	"gorm.io/gorm/clause"
+	"strategyexecutor/src/database"
+	"strategyexecutor/src/model"
 
 	"gorm.io/gorm"
 )
 
-var (
-	ErrExchangeNotFound     = errors.New("exchange not found")
-	ErrUserExchangeNotFound = errors.New("user exchange not found")
-)
-
-type UserExchangeStore interface {
-	CreateExchange(exchange *model.Exchange) error
-	GetExchangeByID(id uint) (*model.Exchange, error)
-	FindUserExchange(userID, exchangeID uint) (*model.UserExchange, error)
-	SaveUserExchange(ue *model.UserExchange) error
-	ListFormUserExchanges(userID uint) ([]model.UserExchange, error)
-	DeleteUserExchange(userID, exchangeID uint) (bool, error)
+type UserExchangeRepository interface {
+	Create(ctx context.Context, ue *model.UserExchange) error
+	GetByUserAndExchange(ctx context.Context, userID string, exchangeID uint) (*model.UserExchange, error)
+	Update(ctx context.Context, ue *model.UserExchange) error
+	UpdateByUserAndExchange(ctx context.Context, userID string, exchangeID uint, updates map[string]interface{}) error
 }
 
-var (
-	storeMu sync.RWMutex
-	store   UserExchangeStore = &gormUserExchangeRepository{}
-)
-
-func SetUserExchangeStore(s UserExchangeStore) {
-	storeMu.Lock()
-	defer storeMu.Unlock()
-
-	if s == nil {
-		store = &gormUserExchangeRepository{}
-		return
-	}
-
-	store = s
+type GormUserExchangeRepository struct {
+	db *gorm.DB
 }
 
-func GetUserExchangeStore() UserExchangeStore {
-	storeMu.RLock()
-	current := store
-	storeMu.RUnlock()
+func NewUserExchangeRepository() *GormUserExchangeRepository {
+	logger.WithField("component", "GormUserExchangeRepository").
+		Info("Creating new NewUserExchangeRepository with ReadOnlyDB")
 
-	if current != nil {
-		return current
+	return &GormUserExchangeRepository{
+		db: database.MainDB,
 	}
-
-	storeMu.Lock()
-	defer storeMu.Unlock()
-
-	if store == nil {
-		store = &gormUserExchangeRepository{}
-	}
-
-	return store
 }
 
-type gormUserExchangeRepository struct{}
-
-func (s *gormUserExchangeRepository) CreateExchange(exchange *model.Exchange) error {
-	if database.MainDB == nil {
-		return errors.New("database connection is not initialized")
-	}
-
-	return database.MainDB.Create(exchange).Error
+// Create inserts a new UserExchange record.
+func (r *GormUserExchangeRepository) Create(ctx context.Context, ue *model.UserExchange) error {
+	return r.db.WithContext(ctx).Create(ue).Error
 }
 
-func (s *gormUserExchangeRepository) GetExchangeByID(id uint) (*model.Exchange, error) {
-	if database.MainDB == nil {
-		return nil, errors.New("database connection is not initialized")
-	}
+// GetByUserAndExchange returns a UserExchange for the given userID and exchangeID.
+func (r *GormUserExchangeRepository) GetByUserAndExchange(
+	ctx context.Context,
+	userID uint,
+	exchangeID uint,
+) (*model.UserExchange, error) {
 
-	var exchange model.Exchange
-	if err := database.MainDB.First(&exchange, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrExchangeNotFound
-		}
+	var ue model.UserExchange
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND exchange_id = ?", userID, exchangeID).
+		First(&ue).Error
 
+	if err != nil {
 		return nil, err
 	}
 
-	return &exchange, nil
+	return &ue, nil
 }
 
-func (s *gormUserExchangeRepository) FindUserExchange(userID, exchangeID uint) (*model.UserExchange, error) {
-	if database.MainDB == nil {
-		return nil, errors.New("database connection is not initialized")
+// GetUserRunOnServerAndPercent returns only the fields needed for runtime checks.
+func (r *GormUserExchangeRepository) GetUserRunOnServerAndPercent(
+	ctx context.Context,
+	userID uint,
+	exchangeID uint,
+) (bool, int, error) {
+
+	// Small struct just for the query result
+	type result struct {
+		RunOnServer      bool `gorm:"column:run_on_server"`
+		OrderSizePercent int  `gorm:"column:order_size_percent"`
 	}
 
-	var userExchange model.UserExchange
-	if err := database.MainDB.Where("user_id = ? AND exchange_id = ?", userID, exchangeID).Preload("Exchange").First(&userExchange).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrUserExchangeNotFound
-		}
+	var res result
 
-		return nil, err
+	err := r.db.WithContext(ctx).
+		Model(&model.UserExchange{}).
+		Select("run_on_server, order_size_percent").
+		Where("user_id = ? AND exchange_id = ?", userID, exchangeID).
+		Take(&res).Error
+	if err != nil {
+		return false, 0, err
 	}
 
-	return &userExchange, nil
+	return res.RunOnServer, res.OrderSizePercent, nil
 }
 
-func (s *gormUserExchangeRepository) SaveUserExchange(ue *model.UserExchange) error {
-	if database.MainDB == nil {
-		return errors.New("database connection is not initialized")
-	}
-
-	return database.MainDB.Save(ue).Error
+// Update updates an existing UserExchange using its primary key (ID).
+func (r *GormUserExchangeRepository) Update(ctx context.Context, ue *model.UserExchange) error {
+	// Save will update all fields, including zero values.
+	return r.db.WithContext(ctx).Save(ue).Error
 }
 
-func (s *gormUserExchangeRepository) ListFormUserExchanges(userID uint) ([]model.UserExchange, error) {
-	if database.MainDB == nil {
-		return nil, errors.New("database connection is not initialized")
-	}
+// UpdateByUserAndExchange updates an existing UserExchange using the composite key (user_id, exchange_id).
+// The updates parameter is a map of columns to new values.
+func (r *GormUserExchangeRepository) UpdateByUserAndExchange(
+	ctx context.Context,
+	userID string,
+	exchangeID uint,
+	updates map[string]interface{},
+) error {
 
-	var exchanges []model.UserExchange
-	if err := database.MainDB.Preload("Exchange").Where("user_id = ? ", userID).Find(&exchanges).Error; err != nil {
-		return nil, err
-	}
-
-	return exchanges, nil
+	return r.db.WithContext(ctx).
+		Model(&model.UserExchange{}).
+		Where("user_id = ? AND exchange_id = ?", userID, exchangeID).
+		Updates(updates).Error
 }
 
-func (s *gormUserExchangeRepository) DeleteUserExchange(userID, exchangeID uint) (bool, error) {
-	if database.MainDB == nil {
-		return false, errors.New("database connection is not initialized")
-	}
+// Upsert creates a new UserExchange or updates API keys if the (user_id, exchange_id)
+// combination already exists.
+func (r *GormUserExchangeRepository) Upsert(
+	ctx context.Context,
+	ue *model.UserExchange,
+) error {
 
-	res := database.MainDB.Where("user_id = ? AND exchange_id = ?", userID, exchangeID).Delete(&model.UserExchange{})
-	if res.Error != nil {
-		return false, res.Error
-	}
-
-	return res.RowsAffected > 0, nil
+	// OnConflict: match on composite unique index (user_id, exchange_id)
+	// If a record already exists, update the credential fields and ShowInForms.
+	return r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "user_id"},
+				{Name: "exchange_id"},
+			},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"api_key",
+				"api_secret",
+				"api_passphrase",
+				"updated_at",
+			}),
+		}).
+		Create(ue).Error
 }

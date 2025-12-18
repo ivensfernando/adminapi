@@ -9,11 +9,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-resty/resty/v2"
-	logger "github.com/sirupsen/logrus"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-resty/resty/v2"
+	logger "github.com/sirupsen/logrus"
 )
 
 // -----------------------------
@@ -97,7 +98,7 @@ func NewClient(apiKey, apiSecret, baseURL string) *Client {
 
 	if baseURL == "" {
 		baseURL = "https://testnet-api.phemex.com"
-		logger.Warn("No base URL provided, using default: %s", baseURL)
+		logger.Warnf("No base URL provided, using default: %s", baseURL)
 	}
 
 	httpClient := resty.New().

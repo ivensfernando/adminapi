@@ -1,0 +1,26 @@
+# Default values for strategyexecutor.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+cronJob:
+  enabled: true
+  image: rg.fr-par.scw.cloud/comentarismoregistry/strategyexecutor_cmd
+  tag: latest
+  cmd_name: strategyexecutor-jorge
+  schedule: "*/1 * * * *"  # Run every X minutes
+  concurrencyPolicy: Forbid
+  args: ["executor"]
+  restartPolicy: OnFailure
+  env:
+    TARGET_EXCHANGE: phemex
+    TARGET_SYMBOL: BTCUSD
+    USER_ID: jorge
+    LOG_LEVEL: debug
+    BASE_URL: https://testnet-api.phemex.com
+    LOOP_PERIOD: 30s
+  envsec:
+    DATABASE_URL_MAIN: DATABASE_URL_MAIN
+    DATABASE_URL_READONLY: DATABASE_URL_READONLY
+    EXCHANGE_CREDENTIALS_KEY: EXCHANGE_CREDENTIALS_KEY

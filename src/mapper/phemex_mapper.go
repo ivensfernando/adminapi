@@ -6,7 +6,7 @@ import (
 
 	logger "github.com/sirupsen/logrus"
 
-	"adminapi/src/model"
+	"strategyexecutor/src/model"
 )
 
 // MapPhemexResponseToModel converts a raw Phemex API response into a database model
