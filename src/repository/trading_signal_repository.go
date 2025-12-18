@@ -89,6 +89,8 @@ func (r *TradingSignalRepository) FindByID(
 // The limit parameter defines how many records will be returned.
 func (r *TradingSignalRepository) FindLatest(
 	ctx context.Context,
+	symbol,
+	exchangeName string,
 	limit int,
 ) ([]externalmodel.TradingSignal, error) {
 
@@ -106,6 +108,7 @@ func (r *TradingSignalRepository) FindLatest(
 
 	err := r.db.WithContext(ctx).
 		Select("id", "order_id", "symbol", "action", "price").
+		Where("symbol = ? AND exchange_name = ?", symbol, exchangeName).
 		Order("id DESC").
 		Limit(limit).
 		Find(&signals).Error

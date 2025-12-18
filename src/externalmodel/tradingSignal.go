@@ -5,6 +5,7 @@ import "time"
 type TradingSignal struct {
 	ID                     uint       `gorm:"primaryKey;column:id" json:"id"`
 	OrderID                string     `gorm:"column:order_id" json:"order_id"`
+	ExchangeName           string     `gorm:"column:exchange_name" json:"exchange_name"`
 	Symbol                 string     `gorm:"column:symbol" json:"symbol"`
 	Action                 string     `gorm:"column:action" json:"action"`
 	OrderType              string     `gorm:"column:order_type" json:"order_type"`

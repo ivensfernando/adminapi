@@ -11,9 +11,10 @@ const (
 	//OrderExecutionStatusAccepted   = "accepted"
 	//OrderExecutionStatusRejected   = "rejected"
 	//OrderExecutionStatusPartFilled = "part_filled"
-	OrderExecutionStatusFilled = "filled"
-	//OrderExecutionStatusCanceled   = "canceled"
-	OrderExecutionStatusError = "error"
+	OrderExecutionStatusFilled        = "filled"
+	OrderExecutionStatusClosed        = "closed"
+	OrderExecutionStatusError         = "error"
+	OrderExecutionStatusCanceledError = "canceled_error"
 )
 
 // OrderExecutionLog stores the detailed history of each interaction with the exchange

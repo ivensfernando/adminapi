@@ -701,3 +701,113 @@ func (r *OrderRepository) FindByExternalIDAndUserID(
 
 	return &order, nil
 }
+
+func (r *OrderRepository) UpdatePriceAutoLog(
+	ctx context.Context,
+	orderID uint,
+	price *float64,
+	reason string,
+) error {
+
+	logger.WithFields(map[string]interface{}{
+		"repo":     "OrderRepository",
+		"op":       "UpdateStatusWithAutoLog",
+		"order_id": orderID,
+		"price":    price,
+		"reason":   reason,
+	}).Info("Updating order price with automatic execution log")
+
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var order model.Order
+
+		if err := tx.First(&order, orderID).Error; err != nil {
+			logger.WithError(err).Error("Failed to load order inside transaction")
+			return err
+		}
+
+		if err := tx.
+			Model(&model.Order{}).
+			Where("id = ?", orderID).
+			Update("price", price).Error; err != nil {
+			logger.WithError(err).Error("Failed to update order status inside transaction")
+			return err
+		}
+
+		logEntry := &model.OrderLog{
+			OrderID:       order.ID,
+			ExchangeID:    order.ExchangeID,
+			Symbol:        order.Symbol,
+			Side:          order.Side,
+			PosSide:       order.PosSide,
+			OrderType:     order.OrderType,
+			Quantity:      order.Quantity,
+			Price:         price,
+			StopLossPct:   order.StopLossPct,
+			TakeProfitPct: order.TakeProfitPct,
+			Status:        order.Status,
+			CreatedAt:     time.Now(),
+		}
+
+		if err := tx.Create(logEntry).Error; err != nil {
+			logger.WithError(err).Error("Failed to create auto execution log on status update")
+			return err
+		}
+
+		return nil
+	})
+}
+
+// FindByExchangeIDAndUserID fetches an order by its ExchangeID and UserStrID.
+// Returns (nil, nil) if the order is not found.
+func (r *OrderRepository) FindByExchangeIDAndUserID(
+	ctx context.Context,
+	userID uint,
+	exchangeID uint,
+) (*model.Order, error) {
+
+	logger.WithFields(map[string]interface{}{
+		"repo":        "OrderRepository",
+		"op":          "FindByExternalIDAndUser",
+		"user_id":     userID,
+		"exchange_id": exchangeID,
+	}).Debug("Fetching order by external ID and user")
+
+	var order model.Order
+
+	err := r.db.WithContext(ctx).
+		Where("exchange_id = ? AND user_id = ?", exchangeID, userID).
+		Order("created_at DESC").
+		First(&order).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.WithFields(map[string]interface{}{
+				"repo":        "OrderRepository",
+				"op":          "FindByExternalIDAndUser",
+				"user_id":     userID,
+				"exchange_id": exchangeID,
+			}).Info("Order not found by external ID and user")
+
+			return nil, nil
+		}
+
+		logger.WithFields(map[string]interface{}{
+			"repo":        "OrderRepository",
+			"op":          "FindByExternalIDAndUser",
+			"user_id":     userID,
+			"exchange_id": exchangeID,
+		}).WithError(err).Error("Failed to fetch order by external ID and user")
+
+		return nil, err
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"repo":        "OrderRepository",
+		"op":          "FindByExternalIDAndUser",
+		"user_id":     userID,
+		"exchange_id": exchangeID,
+		"order_id":    order.ID,
+	}).Debug("Order fetched successfully by external ID and user")
+
+	return &order, nil
+}

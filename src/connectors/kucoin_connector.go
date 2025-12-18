@@ -7,11 +7,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	logger "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
+
+	logger "github.com/sirupsen/logrus"
 )
 
 // ---------------------------------------------------------------------
@@ -349,9 +351,102 @@ func (k *KucoinConnector) GetAccountBalances() (map[string]float64, error) {
 	return balances, nil
 }
 
+// GetAvailableBaseFromUSDT converts the available USDT balance into base units using the latest ticker price.
+func (k *KucoinConnector) GetAvailableBaseFromUSDT(
+	symbol string,
+) (baseSymbol string, baseAvail float64, usdtAvail float64, price float64, err error) {
+
+	if symbol == "" {
+		err = fmt.Errorf("symbol is required")
+		return
+	}
+
+	baseSymbol = symbol
+	switch {
+	case strings.HasSuffix(symbol, "USDTM"):
+		baseSymbol = strings.TrimSuffix(symbol, "USDTM")
+	case strings.HasSuffix(symbol, "USDT"):
+		baseSymbol = strings.TrimSuffix(symbol, "USDT")
+	}
+
+	usdtAvail, err = k.GetFuturesAvailableForSymbol(symbol)
+	if err != nil {
+		return
+	}
+
+	ticker, err := k.GetFuturesTicker(symbol)
+	if err != nil {
+		return
+	}
+
+	price = toFloat(ticker["price"])
+	if price <= 0 {
+		price = toFloat(ticker["lastTradePrice"])
+	}
+	if price <= 0 {
+		err = fmt.Errorf("invalid price for %s", symbol)
+		return
+	}
+
+	baseAvail = usdtAvail / price
+	return
+}
+
 // ---------------------------------------------------------------------
 // EXEMPLO DE EXECUÇÃO DE ORDEM FUTUROS (opcional, se quiseres já deixar pronto)
 // ---------------------------------------------------------------------
+
+// PlaceFuturesOrder sends a futures order to KuCoin.
+func (k *KucoinConnector) PlaceFuturesOrder(
+	symbol string,
+	side string,
+	orderType string,
+	size int64,
+	reduceOnly bool,
+) (*kucoinAPIResponse, error) {
+
+	if symbol == "" || side == "" {
+		return nil, fmt.Errorf("symbol and side are required")
+	}
+	if size <= 0 {
+		return nil, fmt.Errorf("order size must be greater than zero")
+	}
+
+	clientOid := fmt.Sprintf("go-%d", time.Now().UnixNano())
+
+	body := map[string]interface{}{
+		"clientOid":  clientOid,
+		"symbol":     symbol,
+		"side":       side,
+		"type":       orderType,
+		"size":       size,
+		"reduceOnly": reduceOnly,
+	}
+
+	b, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("marshal order body: %w", err)
+	}
+
+	logger.WithFields(logger.Fields{
+		"symbol": symbol,
+		"side":   side,
+		"type":   orderType,
+		"size":   size,
+	}).Info("Placing KuCoin futures order")
+
+	return k.futuresClient.doRequest(
+		http.MethodPost,
+		"/api/v1/orders",
+		"",
+		string(b),
+	)
+}
+
+// PlaceFuturesMarketOrder places a KuCoin futures MARKET order with reduceOnly flag support.
+func (k *KucoinConnector) PlaceFuturesMarketOrder(symbol, side string, size int64, reduceOnly bool) (*kucoinAPIResponse, error) {
+	return k.PlaceFuturesOrder(symbol, side, "market", size, reduceOnly)
+}
 
 // ExecuteFuturesOrder sends a futures order to KuCoin without changing leverage.
 func (k *KucoinConnector) ExecuteFuturesOrder(
@@ -439,6 +534,12 @@ func (k *KucoinConnector) ExecuteFuturesOrder(
 	}).Info("KuCoin futures order placed successfully")
 
 	return out, nil
+}
+
+// CloseAllPositions is a placeholder to align KuCoin connector behavior with Phemex flows.
+func (k *KucoinConnector) CloseAllPositions(symbol string) error {
+	logger.WithField("symbol", symbol).Warn("CloseAllPositions for KuCoin is not implemented; skipping")
+	return nil
 }
 
 // SetFuturesLeverage sets the leverage for a given futures symbol.

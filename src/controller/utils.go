@@ -74,6 +74,21 @@ func NormalizeToUSDT(symbol string) string {
 	return s
 }
 
+// NormalizeToKucoinFuturesSymbol formats a symbol to the KuCoin futures pattern (e.g. BTCUSDTM).
+// It uppercases, ensures USDT as quote, converts BTC -> XBT, and appends the required trailing "M".
+func NormalizeToKucoinFuturesSymbol(symbol string) string {
+	s := NormalizeToUSDT(symbol)
+	if strings.HasPrefix(s, "BTC") {
+		s = "XBT" + strings.TrimPrefix(s, "BTC")
+	}
+
+	if !strings.HasSuffix(s, "M") {
+		s += "M"
+	}
+
+	return s
+}
+
 // Capture records a system exception, logs it locally, and optionally
 // persists it in the database.
 func Capture(

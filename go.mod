@@ -11,6 +11,7 @@ require (
 	github.com/go-resty/resty/v2 v2.17.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/shopspring/decimal v1.4.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.2
 	golang.org/x/crypto v0.41.0
