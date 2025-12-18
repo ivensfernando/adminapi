@@ -1,5 +1,18 @@
 package connectors
 
+// Test index:
+// 1. TestIsRetryableResp verifies retry decisions for various response codes and errors.
+// 2. TestSignRequest validates HMAC signature generation inputs and output.
+// 3. TestGetPositionsUSDT checks decoding of position data for USDT pairs.
+// 4. TestTradingEndpoints ensures trading endpoints are called with expected methods and paths.
+// 5. TestMarketDataEndpoints covers ticker and orderbook market data retrieval.
+// 6. TestGetFuturesAvailableFromRiskUnit validates available balance retrieval for futures risk units.
+// 7. TestPhemexGetAvailableBaseFromUSDT_InvalidSymbol asserts rejection of non-USDT symbols.
+// 8. TestPhemexGetAvailableBaseFromUSDT checks available base calculation from USDT balance and price.
+// 9. TestCloseAllPositions ensures positions are closed by placing opposite orders.
+// 10. TestCloseAllPositionsPlaceOrderError confirms errors propagate when closing orders fail.
+// Missing scenario to consider: handling empty position lists when closing positions without errors.
+
 import (
 	"crypto/hmac"
 	"crypto/sha256"
@@ -25,7 +38,10 @@ func newTestClient(baseURL string, httpClient *http.Client) *Client {
 	}
 }
 
+// Summarizes retryability decisions for assorted errors and HTTP responses.
 func TestIsRetryableResp(t *testing.T) {
+	// Validates retry logic by exercising error presence and specific HTTP status codes to confirm
+	// true is returned for retryable cases and false otherwise.
 	cases := []struct {
 		name string
 		resp *resty.Response
@@ -50,7 +66,10 @@ func TestIsRetryableResp(t *testing.T) {
 	}
 }
 
+// Summarizes HMAC signing for a fixed request payload and secret.
 func TestSignRequest(t *testing.T) {
+	// Ensures the HMAC signature matches the expected digest for a fixed request path, query,
+	// body, and expiry using a known secret.
 	expiry := int64(1700000000)
 	expectedMac := hmac.New(sha256.New, []byte("secret"))
 	expectedMac.Write([]byte("/testpath" + "query" + "1700000000" + "body"))
@@ -62,7 +81,10 @@ func TestSignRequest(t *testing.T) {
 	}
 }
 
+// Summarizes USDT position retrieval and decoding of server payloads.
 func TestGetPositionsUSDT(t *testing.T) {
+	// Confirms USDT position retrieval decodes the server payload and returns the expected
+	// symbol details.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(APIResponse{Code: 0, Data: mustJSON(GAccountPositions{Positions: []struct {
 			AccountID        int64  `json:"accountID"`
@@ -89,7 +111,10 @@ func TestGetPositionsUSDT(t *testing.T) {
 	}
 }
 
+// Summarizes trading endpoint routing and HTTP method validation for order workflows.
 func TestTradingEndpoints(t *testing.T) {
+	// Verifies trading endpoints use correct HTTP methods and URLs by recording server calls
+	// across place order, cancel all, active orders, order history, and fills.
 	type call struct {
 		path   string
 		method string
@@ -145,7 +170,10 @@ func TestTradingEndpoints(t *testing.T) {
 	}
 }
 
+// Summarizes ticker and orderbook market data retrieval and parsing.
 func TestMarketDataEndpoints(t *testing.T) {
+	// Checks market data endpoints for ticker and orderbook to ensure responses are parsed and
+	// returned as expected.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/md/v3/ticker/24hr":
@@ -177,7 +205,10 @@ func TestMarketDataEndpoints(t *testing.T) {
 	}
 }
 
+// Summarizes available balance retrieval from the futures risk unit endpoint.
 func TestGetFuturesAvailableFromRiskUnit(t *testing.T) {
+	// Validates available balance retrieval from the risk unit endpoint and ensures errors are
+	// raised when the requested symbol is missing.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(APIResponse{Code: 0, Data: mustJSON([]RiskUnit{{
 			Symbol:                "BTCUSDT",
@@ -200,14 +231,19 @@ func TestGetFuturesAvailableFromRiskUnit(t *testing.T) {
 	}
 }
 
+// Summarizes validation of non-USDT symbols when computing available base amounts.
 func TestPhemexGetAvailableBaseFromUSDT_InvalidSymbol(t *testing.T) {
+	// Ensures non-USDT symbols are rejected and produce an error before any remote calls.
 	client := newTestClient("http://example", resty.New().GetClient())
 	if _, _, _, _, err := client.GetAvailableBaseFromUSDT("BTCUSD"); err == nil {
 		t.Fatalf("expected error for non-USDT symbol")
 	}
 }
 
+// Summarizes base availability calculation using USDT balance and ticker price data.
 func TestPhemexGetAvailableBaseFromUSDT(t *testing.T) {
+	// Confirms base currency availability is calculated from USDT balance and ticker price and
+	// validates the parsed base symbol, available USDT, and derived base amount.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/g-accounts/risk-unit":
@@ -246,7 +282,10 @@ func TestPhemexGetAvailableBaseFromUSDT(t *testing.T) {
 	}
 }
 
+// Summarizes closing all positions by issuing counter orders and counting calls.
 func TestCloseAllPositions(t *testing.T) {
+	// Ensures existing positions trigger a closing market order and tracks the number of
+	// generated orders to confirm all positions are addressed.
 	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -284,7 +323,10 @@ func TestCloseAllPositions(t *testing.T) {
 	}
 }
 
+// Summarizes error propagation when closing orders fail during position liquidation.
 func TestCloseAllPositionsPlaceOrderError(t *testing.T) {
+	// Confirms that an error is returned when placing a closing order fails after fetching
+	// positions to close.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/g-accounts/positions":
