@@ -345,7 +345,7 @@ func TestGetKlines(t *testing.T) {
 	if _, err := client.GetKlines("BTCUSDT", 5); err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
-	if path != "/md/perpetual/kline?symbol=BTCUSDT&resolution=5" {
+	if path != "/md/perpetual/kline?resolution=5&symbol=BTCUSDT" {
 		t.Fatalf("unexpected klines path: %s", path)
 	}
 }
