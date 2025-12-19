@@ -376,84 +376,84 @@ func (c *Client) GetAvailableBaseFromUSDT(
 // CloseAllPositions closes ALL open positions (Long and Short) for a given symbol
 // by sending MARKET orders in the opposite direction with reduceOnly enabled.
 // This guarantees that positions are fully closed and no new positions are opened.
-func (c *Client) CloseAllPositions(symbol string) error {
-	logger.WithFields(map[string]interface{}{
-		"symbol": symbol,
-	}).Info("Closing ALL positions for symbol")
-
-	// 1) Fetch all USDT positions from the account
-	positions, err := c.GetPositionsUSDT()
-	if err != nil {
-		return fmt.Errorf("GetPositionsUSDT failed: %w", err)
-	}
-
-	// 2) Iterate through positions and filter by symbol
-	for _, p := range positions.Positions {
-		if p.Symbol != symbol {
-			continue
-		}
-
-		// Skip empty positions (nothing to close)
-		if p.SizeRq == "0" || p.SizeRq == "" {
-			continue
-		}
-
-		// Determine the opposite side required to close the position
-		var closeSide string
-		switch p.Side {
-		case "Buy":
-			closeSide = "Sell"
-		case "Sell":
-			closeSide = "Buy"
-		default:
-			logger.WithFields(map[string]interface{}{
-				"symbol": symbol,
-				"side":   p.Side,
-			}).Error("Unknown position side, skipping")
-			continue
-		}
-
-		logger.WithFields(map[string]interface{}{
-			"symbol":    p.Symbol,
-			"posSide":   p.PosSide,
-			"side":      p.Side,
-			"size":      p.SizeRq,
-			"closeSide": closeSide,
-		}).Info("Closing position")
-
-		// 3) Send a MARKET order with reduceOnly to fully close the position
-		_, err := c.PlaceOrder(
-			p.Symbol,  // trading pair
-			closeSide, // opposite side to close the position
-			p.PosSide, // Long or Short
-			p.SizeRq,  // full position size
-			"Market",  // market order
-			true,      // reduceOnly = true (guarantees position close)
-		)
-		if err != nil {
-			logger.WithFields(map[string]interface{}{
-				"symbol":  p.Symbol,
-				"posSide": p.PosSide,
-				"side":    p.Side,
-				"size":    p.SizeRq,
-			}).WithError(err).Error("Failed to close position")
-
-			return fmt.Errorf(
-				"failed to close position %s %s (%s): %w",
-				p.Symbol,
-				p.PosSide,
-				p.Side,
-				err,
-			)
-		}
-	}
-
-	logger.WithFields(map[string]interface{}{
-		"symbol": symbol,
-	}).Info("All positions successfully closed")
-
-	return nil
-}
+//func (c *Client) WCloseAllPositions(symbol string) error {
+//	logger.WithFields(map[string]interface{}{
+//		"symbol": symbol,
+//	}).Info("Closing ALL positions for symbol")
+//
+//	// 1) Fetch all USDT positions from the account
+//	positions, err := c.GetPositionsUSDT()
+//	if err != nil {
+//		return fmt.Errorf("GetPositionsUSDT failed: %w", err)
+//	}
+//
+//	// 2) Iterate through positions and filter by symbol
+//	for _, p := range positions.Positions {
+//		if p.Symbol != symbol {
+//			continue
+//		}
+//
+//		// Skip empty positions (nothing to close)
+//		if p.SizeRq == "0" || p.SizeRq == "" {
+//			continue
+//		}
+//
+//		// Determine the opposite side required to close the position
+//		var closeSide string
+//		switch p.Side {
+//		case "Buy":
+//			closeSide = "Sell"
+//		case "Sell":
+//			closeSide = "Buy"
+//		default:
+//			logger.WithFields(map[string]interface{}{
+//				"symbol": symbol,
+//				"side":   p.Side,
+//			}).Error("Unknown position side, skipping")
+//			continue
+//		}
+//
+//		logger.WithFields(map[string]interface{}{
+//			"symbol":    p.Symbol,
+//			"posSide":   p.PosSide,
+//			"side":      p.Side,
+//			"size":      p.SizeRq,
+//			"closeSide": closeSide,
+//		}).Info("Closing position")
+//
+//		// 3) Send a MARKET order with reduceOnly to fully close the position
+//		_, err := c.PlaceOrder(
+//			p.Symbol,  // trading pair
+//			closeSide, // opposite side to close the position
+//			p.PosSide, // Long or Short
+//			p.SizeRq,  // full position size
+//			"Market",  // market order
+//			true,      // reduceOnly = true (guarantees position close)
+//		)
+//		if err != nil {
+//			logger.WithFields(map[string]interface{}{
+//				"symbol":  p.Symbol,
+//				"posSide": p.PosSide,
+//				"side":    p.Side,
+//				"size":    p.SizeRq,
+//			}).WithError(err).Error("Failed to close position")
+//
+//			return fmt.Errorf(
+//				"failed to close position %s %s (%s): %w",
+//				p.Symbol,
+//				p.PosSide,
+//				p.Side,
+//				err,
+//			)
+//		}
+//	}
+//
+//	logger.WithFields(map[string]interface{}{
+//		"symbol": symbol,
+//	}).Info("All positions successfully closed")
+//
+//	return nil
+//}
 
 // -----------------------------
 // C2) STOP LOSS (CONDITIONAL STOP) METHODS

@@ -67,10 +67,10 @@ func OrderController(
 	ctx context.Context,
 	phemexClient *connectors.Client,
 	user *model.User,
-	orderSizePercent int,
 	exchangeID uint,
 	targetSymbol string, // BTCUSD
 	targetExchange string, // phemex
+	userExchange *model.UserExchange,
 ) error {
 
 	logger.Debugf("OrderController INITIALIZED ")
@@ -81,6 +81,8 @@ func OrderController(
 	exceptionRepo := repository.NewExceptionRepository()
 	orderRepo := repository.NewOrderRepository()
 	ohlcvRepo := repository.NewOHLCVRepositoryRepository()
+
+	orderSizePercent := userExchange.OrderSizePercent
 
 	// ------------------------------------------------------------------
 	// 1) Fetch the latest TradingSignal (from read-only DB)
@@ -207,40 +209,29 @@ func OrderController(
 
 	value := PercentOfFloatSafe(baseAvail, orderSizePercent)
 
-	cfg := risk.DefaultSessionSizeConfig()
-
+	// check risk off mode
+	cfg := risk.NewSessionSizeConfigFromUserExchangeOrDefault(userExchange)
 	finalSize, session := risk.CalculateSizeByNYSession(
 		decimal.NewFromFloat(value),
 		time.Now(),
 		cfg,
 	)
 
-	valueWithRisk := finalSize.InexactFloat64()
-
 	logger.
 		WithField("session", session).
 		WithField("baseSize", value).
 		WithField("finalSize", finalSize).
-		WithField("valueWithRisk", valueWithRisk).
 		WithField("Symbol", symbol).
 		Info("session based risk sizing")
 
 	// check if we can place the order based on risk settings
-	if valueWithRisk <= 0 || session == risk.SessionNoTrade {
+	if finalSize == decimal.Zero {
 		logger.
 			WithField("session", session).
 			WithField("baseSize", value).
 			WithField("finalSize", finalSize).
-			WithField("valueWithRisk", valueWithRisk).
 			WithField("Symbol", symbol).
 			Warn("risk sizing - unable to place order due to risk settings")
-
-		if err := phemexClient.CloseAllPositions(symbol); err != nil {
-			logger.WithError(err).
-				WithField("symbol", symbol).
-				Error("failed to close all positions")
-			return err
-		}
 		return nil
 	}
 
@@ -248,7 +239,6 @@ func OrderController(
 		WithField("session", session).
 		WithField("baseSize", value).
 		WithField("finalSize", finalSize).
-		WithField("valueWithRisk", valueWithRisk).
 		WithField("Symbol", symbol).
 		Debug("Value of order in ")
 	// ------------------------------------------------------------------
@@ -263,8 +253,8 @@ func OrderController(
 		Side:       FirstLetterUpper(signal.Action),  // buy/sell
 		PosSide:    FirstLetterUpper(signal.OrderID), //Short/Long
 		OrderType:  "market",
-		Quantity:   valueWithRisk, //
-		Status:     model.OrderExecutionStatusPending,
+		Quantity:   finalSize.InexactFloat64(), //
+		Status:     model.OrderExecutionStatusFilled,
 		OrderDir:   model.OrderDirectionEntry,
 	}
 

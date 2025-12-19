@@ -74,6 +74,7 @@ func InitMainDB() error {
 		&model.TradingViewNewsEvent{},
 		&model.OHLCVCrypto1m{},
 		&model.OHLCVCrypto1h{},
+		&migrations.DataMigration{},
 		//&model.Strategy{},
 		//&model.StrategyAction{},
 	); err != nil {

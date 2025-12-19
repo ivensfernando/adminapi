@@ -70,18 +70,18 @@ func OrderControllerKucoin(
 		"action":    signal.Action,
 	}).Info("latest kucoin trading signal fetched")
 
-	existingOrder, err := orderRepo.FindByExternalIDAndUserID(ctx, user.ID, signal.ID)
+	//existingOrder, err := orderRepo.FindByExternalIDAndUserID(ctx, user.ID, signal.ID)
 	if err != nil {
 		Capture(ctx, exceptionRepo.(*repository.ExceptionRepository), "OrderControllerKucoin", "controller", "orderRepo.FindByExternalIDAndUser", "error", err, map[string]interface{}{})
 		return err
 	}
 
-	if existingOrder != nil {
-		if existingOrder.Status == model.OrderExecutionStatusFilled {
-			logger.WithField("order_id", existingOrder.ID).Info("existing kucoin order already filled")
-			return nil
-		}
-	}
+	//if existingOrder != nil {
+	//	if existingOrder.Status == model.OrderExecutionStatusFilled {
+	//		logger.WithField("order_id", existingOrder.ID).Info("existing kucoin order already filled")
+	//		return nil
+	//	}
+	//}
 
 	_, _, _, price, err := kucoinClient.GetAvailableBaseFromUSDT(symbol)
 	if err != nil {
@@ -172,7 +172,7 @@ func OrderControllerKucoin(
 		return err
 	}
 
-	_ = orderRepo.UpdateResp(ctx, newOrder.ID, string(respBytes), model.OrderExecutionStatusPending)
+	//_ = orderRepo.UpdateResp(ctx, newOrder.ID, string(respBytes), model.OrderExecutionStatusPending)
 	_ = orderRepo.UpdateStatusWithAutoLog(ctx, newOrder.ID, model.OrderExecutionStatusFilled, "order executed successfully on kucoin")
 	logger.WithFields(map[string]interface{}{"order_id": newOrder.ID, "used_usdt": usedUSDT}).Info("kucoin order executed successfully")
 

@@ -546,6 +546,7 @@ func (r *OrderRepository) CreateWithAutoLog(
 			TakeProfitPct: order.TakeProfitPct,
 			Status:        order.Status,
 			CreatedAt:     time.Now(),
+			//OrderDir:      order.OrderDir,
 		}
 
 		if err := tx.Create(logEntry).Error; err != nil {

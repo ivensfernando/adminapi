@@ -7,8 +7,10 @@ import (
 	"strategyexecutor/src/connectors"
 	"strategyexecutor/src/model"
 	"strategyexecutor/src/repository"
+	"strategyexecutor/src/risk"
 	"time"
 
+	"github.com/shopspring/decimal"
 	logger "github.com/sirupsen/logrus"
 )
 
@@ -20,6 +22,7 @@ func OrderControllerHydra(
 	exchangeID uint,
 	targetSymbol string, // BTCUSD
 	targetExchange string, // hydra
+	userExchange *model.UserExchange,
 ) error {
 	config := connectors.GetConfig()
 	instrumentID := config.HydraInstrumentID
@@ -90,6 +93,19 @@ func OrderControllerHydra(
 
 	}
 
+	// check risk off mode
+	cfg := risk.NewSessionSizeConfigFromUserExchangeOrDefault(userExchange)
+	finalSize, session := risk.CalculateSizeByNYSession(
+		decimal.NewFromFloat(config.KrakenQTD),
+		time.Now(),
+		cfg,
+	)
+
+	logger.
+		WithField("session", session).
+		WithField("finalSize", finalSize).
+		Info("session based risk sizing")
+
 	newOrder := &model.Order{
 		UserID:     user.ID,
 		ExchangeID: exchangeID, // hydra
@@ -98,8 +114,9 @@ func OrderControllerHydra(
 		Side:       FirstLetterUpper(signal.Action),  // buy/sell
 		PosSide:    FirstLetterUpper(signal.OrderID), //Short/Long
 		OrderType:  "market",
-		Quantity:   config.HydraQTD, //
+		Quantity:   finalSize.InexactFloat64(), //
 		Status:     model.OrderExecutionStatusPending,
+		OrderDir:   model.OrderDirectionEntry,
 	}
 	if err := orderRepo.CreateWithAutoLog(ctx, newOrder); err != nil {
 		logger.WithError(err).Error("hydra - failed to create order with auto log")

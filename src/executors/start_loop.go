@@ -8,9 +8,11 @@ import (
 	"strategyexecutor/src/controller"
 	"strategyexecutor/src/model"
 	"strategyexecutor/src/repository"
+	"strategyexecutor/src/risk"
 	"strategyexecutor/src/security"
 	"time"
 
+	"github.com/shopspring/decimal"
 	logger "github.com/sirupsen/logrus"
 )
 
@@ -47,7 +49,7 @@ func StartLoop(ctx context.Context) error {
 		return err
 	}
 
-	logger.Info("Check if the user has the necessary skills to run the strategy.")
+	logger.Info("GetByUserAndExchange call. get user exchange setting, check strategy enabled, verify key/secret")
 	userExchange, err := userExchangeRep.GetByUserAndExchange(ctx, user.ID, exchange.ID)
 	if err != nil || userExchange == nil {
 		logger.WithError(err).Error("Failed to GetByUserAndExchange")
@@ -78,12 +80,34 @@ func StartLoop(ctx context.Context) error {
 
 		case <-ticker.C:
 			logger.Info("loop tick")
-			run, percent, err := getUserRunOnServerAndPercent(ctx, err, userExchangeRep, user.ID, exchange)
-			if err != nil || !run {
-				return errors.New("failed to get user run on server and percent or user run on server is false")
+			logger.Info("GetByUserAndExchange call. get user exchange setting, check strategy enabled, verify key/secret")
+			userExchange, err = userExchangeRep.GetByUserAndExchange(ctx, user.ID, exchange.ID)
+			if err != nil || userExchange == nil {
+				logger.WithError(err).Error("Failed to GetByUserAndExchange")
+				return err
+			}
+			run := userExchange.RunOnServer
+			if !run {
+				logger.Warn("strategy disabled, skipping")
+				return nil
 			}
 
-			// A reasonable window: yesterday → tomorrow
+			// check risk off mode
+			cfg := risk.NewSessionSizeConfigFromUserExchangeOrDefault(userExchange)
+			_, session := risk.CalculateSizeByNYSession(
+				decimal.Zero,
+				time.Now(),
+				cfg,
+			)
+
+			if session == risk.SessionNoTrade {
+				logger.Warn(risk.SessionNoTrade + " - risk off mode")
+				return nil
+			}
+
+			// check if news window -> risk off mode
+
+			// fetch news for a reasonable window: yesterday → tomorrow
 			from := time.Now().Add(-12 * time.Hour).UTC()
 			to := time.Now().Add(12 * time.Hour).UTC()
 
@@ -92,13 +116,13 @@ func StartLoop(ctx context.Context) error {
 				return errors.New("failed to LoadImportantEventsFromDB")
 			}
 
-			cfg := connectors.NewNewsWindowConfig(15*time.Minute, 15*time.Minute)
-			canEnterTrade := connectors.CanEnterTradeAt(time.Now(), tvLoaded, cfg)
+			newsCfg := connectors.NewNewsWindowConfig(15*time.Minute, 15*time.Minute)
+			canEnterTrade := connectors.CanEnterTradeAt(time.Now(), tvLoaded, newsCfg)
 			if !canEnterTrade.Allowed {
 				return errors.New("trade window is not allowed")
 			}
 
-			err = runController(ctx, apiKey, apiSecret, user, percent, exchange)
+			err = runController(ctx, apiKey, apiSecret, user, userExchange, exchange)
 			if err != nil {
 				logger.WithError(err).Error("OrderController failed, will exit here")
 				return err
@@ -108,19 +132,7 @@ func StartLoop(ctx context.Context) error {
 	}
 }
 
-func getUserRunOnServerAndPercent(ctx context.Context, err error, userExchangeRep *repository.GormUserExchangeRepository, userID uint, exchange *model.Exchange) (bool, int, error) {
-	run, percent, err := userExchangeRep.GetUserRunOnServerAndPercent(ctx, userID, exchange.ID)
-	if err != nil {
-		logger.WithError(err).
-			WithField("user", userID).
-			WithField("exchange", exchange.Name).
-			Error("Failed to get GetUserRunOnServerAndPercent")
-		return run, percent, err
-	}
-	return run, percent, nil
-}
-
-func runController(ctx context.Context, apiKey, apiSecret string, user *model.User, percent int, exchange *model.Exchange) error {
+func runController(ctx context.Context, apiKey, apiSecret string, user *model.User, userExchange *model.UserExchange, exchange *model.Exchange) error {
 	config := GetConfig()
 	baseURL := config.BaseURL
 	targetExchange := config.TargetExchange
@@ -130,7 +142,7 @@ func runController(ctx context.Context, apiKey, apiSecret string, user *model.Us
 
 	if targetExchange == "phemex" {
 		phemexClient := connectors.NewClient(apiKey, apiSecret, baseURL)
-		err := controller.OrderController(ctx, phemexClient, user, percent, exchange.ID, targetSymbol, targetExchange)
+		err := controller.OrderController(ctx, phemexClient, user, exchange.ID, targetSymbol, targetExchange, userExchange)
 		if err != nil {
 			logger.WithError(err).Error("OrderController returned an error")
 			return err
@@ -141,7 +153,7 @@ func runController(ctx context.Context, apiKey, apiSecret string, user *model.Us
 			logger.WithError(err).Error("OrderController failed to start NewGooeyClient")
 			return err
 		}
-		err = controller.OrderControllerHydra(ctx, c, user, exchange.ID, targetSymbol, targetExchange)
+		err = controller.OrderControllerHydra(ctx, c, user, exchange.ID, targetSymbol, targetExchange, userExchange)
 		if err != nil {
 			logger.WithError(err).Error("OrderControllerHydra returned an error")
 			return err
@@ -149,8 +161,7 @@ func runController(ctx context.Context, apiKey, apiSecret string, user *model.Us
 
 	} else if targetExchange == "kraken" {
 		c := connectors.NewKrakenFuturesClient(apiKey, apiSecret, "")
-
-		err := controller.OrderControllerKrakenFutures(ctx, c, user, exchange.ID, targetSymbol, targetExchange)
+		err := controller.OrderControllerKrakenFutures(ctx, c, user, exchange.ID, targetSymbol, targetExchange, userExchange)
 		if err != nil {
 			logger.WithError(err).Error("OrderControllerKrakenFutures returned an error")
 			return err

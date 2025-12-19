@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"github.com/shopspring/decimal"
+)
 
 type UserExchange struct {
 	ID     uint `gorm:"primaryKey" json:"id"`
@@ -16,6 +20,15 @@ type UserExchange struct {
 	RunOnServer       bool      `gorm:"column:run_on_server" json:"run_on_server"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
+
+	WeekendHolidayMultiplier decimal.Decimal `json:"WeekendHolidayMultiplier"`
+	DeadZoneMultiplier       decimal.Decimal `json:"DeadZoneMultiplier"`
+	AsiaMultiplier           decimal.Decimal `json:"AsiaMultiplier"`
+	LondonMultiplier         decimal.Decimal `json:"LondonMultiplier"`
+	USMultiplier             decimal.Decimal `json:"USMultiplier"`
+	DefaultMultiplier        decimal.Decimal `json:"DefaultMultiplier"`
+
+	EnableNoTradeWindow bool `json:"EnableNoTradeWindow"`
 
 	Exchange *Exchange `gorm:"constraint:OnDelete:CASCADE" json:"exchange"`
 }

@@ -99,7 +99,7 @@ func TestCalculateSizeByNYSession_WithNoTradeWindow(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotSize, gotSession := CalculateSizeByNYSession(baseSize, tt.at, cfg)
+			gotSize, gotSession := CalculateSizeByNYSession(baseSize, tt.at, &cfg)
 
 			if gotSession != tt.wantSession {
 				t.Fatalf("session mismatch. got=%s want=%s", gotSession, tt.wantSession)
@@ -127,7 +127,7 @@ func TestCalculateSizeByNYSession_WeekendWithoutNoTradeWindow(t *testing.T) {
 	// Pick a Saturday that is not one of the holidays in isHoliday.
 	at := nyDate(2025, time.March, 8, 12) // Saturday noon
 
-	gotSize, gotSession := CalculateSizeByNYSession(baseSize, at, cfg)
+	gotSize, gotSession := CalculateSizeByNYSession(baseSize, at, &cfg)
 
 	if gotSession != SessionWeekendHoliday {
 		t.Fatalf("session mismatch. got=%s want=%s", gotSession, SessionWeekendHoliday)
@@ -169,7 +169,7 @@ func TestCalculateSizeByNYSession_HolidayWithNoTradeWindow(t *testing.T) {
 	// July 4, 2025. US holiday.
 	at := nyDate(2025, time.July, 4, 12)
 
-	gotSize, gotSession := CalculateSizeByNYSession(baseSize, at, cfg)
+	gotSize, gotSession := CalculateSizeByNYSession(baseSize, at, &cfg)
 
 	if gotSession != SessionNoTrade {
 		t.Fatalf("session mismatch on holiday. got=%s want=%s", gotSession, SessionNoTrade)
@@ -194,7 +194,7 @@ func TestCalculateSizeByNYSession_HolidayWithoutNoTradeWindow(t *testing.T) {
 
 	at := nyDate(2025, time.July, 4, 12)
 
-	gotSize, gotSession := CalculateSizeByNYSession(baseSize, at, cfg)
+	gotSize, gotSession := CalculateSizeByNYSession(baseSize, at, &cfg)
 
 	if gotSession != SessionWeekendHoliday {
 		t.Fatalf("session mismatch on holiday without window. got=%s want=%s", gotSession, SessionWeekendHoliday)
@@ -220,7 +220,7 @@ func TestCalculateSizeSimple(t *testing.T) {
 
 	at := nyDate(2025, time.December, 16, 12)
 
-	gotSize, gotSession := CalculateSizeByNYSession(baseSize, at, cfg)
+	gotSize, gotSession := CalculateSizeByNYSession(baseSize, at, &cfg)
 
 	if gotSession != SessionUS {
 		t.Fatalf("session mismatch. got=%s want=%s", gotSession, SessionWeekendHoliday)

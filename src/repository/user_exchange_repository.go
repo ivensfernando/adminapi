@@ -2,10 +2,11 @@ package repository
 
 import (
 	"context"
-	logger "github.com/sirupsen/logrus"
-	"gorm.io/gorm/clause"
 	"strategyexecutor/src/database"
 	"strategyexecutor/src/model"
+
+	logger "github.com/sirupsen/logrus"
+	"gorm.io/gorm/clause"
 
 	"gorm.io/gorm"
 )
@@ -55,31 +56,6 @@ func (r *GormUserExchangeRepository) GetByUserAndExchange(
 }
 
 // GetUserRunOnServerAndPercent returns only the fields needed for runtime checks.
-func (r *GormUserExchangeRepository) GetUserRunOnServerAndPercent(
-	ctx context.Context,
-	userID uint,
-	exchangeID uint,
-) (bool, int, error) {
-
-	// Small struct just for the query result
-	type result struct {
-		RunOnServer      bool `gorm:"column:run_on_server"`
-		OrderSizePercent int  `gorm:"column:order_size_percent"`
-	}
-
-	var res result
-
-	err := r.db.WithContext(ctx).
-		Model(&model.UserExchange{}).
-		Select("run_on_server, order_size_percent").
-		Where("user_id = ? AND exchange_id = ?", userID, exchangeID).
-		Take(&res).Error
-	if err != nil {
-		return false, 0, err
-	}
-
-	return res.RunOnServer, res.OrderSizePercent, nil
-}
 
 // Update updates an existing UserExchange using its primary key (ID).
 func (r *GormUserExchangeRepository) Update(ctx context.Context, ue *model.UserExchange) error {

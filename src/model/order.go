@@ -12,10 +12,10 @@ type Order struct {
 	ID uint `gorm:"primaryKey" json:"id"`
 	//StrategyActionID *uint `gorm:"index" json:"strategy_action_id"`
 	//StrategyID         *uint      `gorm:"index" json:"strategy_id"`
-	UserID        uint     `gorm:"index" json:"user_id"`
-	LegacyUserID  string   `gorm:"size:60;column:legacy_user_id" json:"legacy_user_id,omitempty"`
-	ExchangeID    uint     `gorm:"index" json:"exchange_id"`
-	ExchangeResp  string   `json:"exchange_resp,omitempty"`
+	UserID       uint   `gorm:"index" json:"user_id"`
+	LegacyUserID string `gorm:"size:60;column:legacy_user_id" json:"legacy_user_id,omitempty"`
+	ExchangeID   uint   `gorm:"index" json:"exchange_id"`
+	//ExchangeResp  string   `json:"exchange_resp,omitempty"` dropped from db
 	ExternalID    uint     `gorm:"index" json:"external_id"`
 	Symbol        string   `json:"symbol"`
 	Side          string   `json:"side"`
@@ -26,7 +26,7 @@ type Order struct {
 	StopLossPct   float64  `json:"stop_loss_pct"`
 	TakeProfitPct float64  `json:"take_profit_pct"`
 	Status        string   `gorm:"size:50;not null;default:pending" json:"status"`
-	OrderDir      string   `gorm:"-" json:"order_dir"` //entry , exit
+	OrderDir      string   `gorm:"size:10;not null;" json:"order_dir"` //entry , exit
 	//TriggeredByAlertID *uint      `json:"triggered_by_alert_id,omitempty"`
 	ExecutedAt *time.Time `json:"executed_at,omitempty"`
 	CreatedAt  time.Time  `json:"created_at"`

@@ -1,6 +1,7 @@
 package risk
 
 import (
+	"strategyexecutor/src/model"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -38,9 +39,43 @@ type SessionSizeConfig struct {
 	EnableNoTradeWindow bool
 }
 
+// NewSessionSizeConfigFromUserExchangeOrDefault builds a SessionSizeConfig starting from the
+// defaults and overriding with any non-zero values found on the UserExchange.
+func NewSessionSizeConfigFromUserExchangeOrDefault(ux *model.UserExchange) *SessionSizeConfig {
+	cfg := DefaultSessionSizeConfig()
+	if ux == nil {
+		return cfg
+	}
+
+	if !ux.WeekendHolidayMultiplier.Equal(decimal.Zero) {
+		cfg.WeekendHolidayMultiplier = ux.WeekendHolidayMultiplier
+	}
+	if !ux.DeadZoneMultiplier.Equal(decimal.Zero) {
+		cfg.DeadZoneMultiplier = ux.DeadZoneMultiplier
+	}
+	if !ux.AsiaMultiplier.Equal(decimal.Zero) {
+		cfg.AsiaMultiplier = ux.AsiaMultiplier
+	}
+	if !ux.LondonMultiplier.Equal(decimal.Zero) {
+		cfg.LondonMultiplier = ux.LondonMultiplier
+	}
+	if !ux.USMultiplier.Equal(decimal.Zero) {
+		cfg.USMultiplier = ux.USMultiplier
+	}
+	if !ux.DefaultMultiplier.Equal(decimal.Zero) {
+		cfg.DefaultMultiplier = ux.DefaultMultiplier
+	}
+
+	// bool can't be "unset" without an extra flag, so we always take what's stored.
+	// If you want "unset" semantics, add e.g. EnableNoTradeWindowSet bool or use *bool.
+	cfg.EnableNoTradeWindow = ux.EnableNoTradeWindow
+
+	return cfg
+}
+
 // DefaultSessionSizeConfig reasonable defaults, tweak as you like
-func DefaultSessionSizeConfig() SessionSizeConfig {
-	return SessionSizeConfig{
+func DefaultSessionSizeConfig() *SessionSizeConfig {
+	return &SessionSizeConfig{
 		WeekendHolidayMultiplier: decimal.NewFromFloat(0.15),
 		DeadZoneMultiplier:       decimal.NewFromFloat(0.15),
 		AsiaMultiplier:           decimal.NewFromFloat(0.75),
@@ -58,10 +93,13 @@ func DefaultSessionSizeConfig() SessionSizeConfig {
 func CalculateSizeByNYSession(
 	baseSize decimal.Decimal,
 	now time.Time,
-	cfg SessionSizeConfig,
+	cfg *SessionSizeConfig,
 ) (decimal.Decimal, Session) {
 	if baseSize.LessThanOrEqual(decimal.Zero) {
 		return decimal.Zero, SessionDefault
+	}
+	if cfg == nil {
+		cfg = DefaultSessionSizeConfig()
 	}
 
 	et := getEasternTime(now)
@@ -140,7 +178,10 @@ func detectSession(t time.Time) Session {
 }
 
 // sizeMultiplierForSession just maps session to configured multiplier.
-func sizeMultiplierForSession(s Session, cfg SessionSizeConfig) decimal.Decimal {
+func sizeMultiplierForSession(s Session, cfg *SessionSizeConfig) decimal.Decimal {
+	if cfg == nil {
+		panic("cfg is nil")
+	}
 	switch s {
 	case SessionWeekendHoliday:
 		return cfg.WeekendHolidayMultiplier

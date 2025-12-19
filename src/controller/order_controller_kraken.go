@@ -8,9 +8,11 @@ import (
 	"strategyexecutor/src/connectors"
 	"strategyexecutor/src/model"
 	"strategyexecutor/src/repository"
+	"strategyexecutor/src/risk"
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	logger "github.com/sirupsen/logrus"
 )
 
@@ -30,6 +32,7 @@ func OrderControllerKrakenFutures(
 	exchangeID uint,
 	targetSymbol string, // BTCUSD
 	targetExchange string, // kraken
+	userExchange *model.UserExchange,
 ) error {
 	config := connectors.GetConfig()
 	krakenSymbol := config.KrakenSymbol
@@ -40,6 +43,8 @@ func OrderControllerKrakenFutures(
 	tradingSignalRepo := repository.NewTradingSignalRepository()
 	exceptionRepo := repository.NewExceptionRepository()
 	orderRepo := repository.NewOrderRepository()
+
+	//orderSizePercent := userExchange.OrderSizePercent
 
 	// ------------------------------------------------------------------
 	// 1) Fetch latest TradingSignal
@@ -97,6 +102,19 @@ func OrderControllerKrakenFutures(
 	desiredSide := normalizeKrakenSide(signal.Action) // buy/sell
 	desiredPosSide := desiredPositionSide(desiredSide)
 
+	// check risk off mode
+	cfg := risk.NewSessionSizeConfigFromUserExchangeOrDefault(userExchange)
+	finalSize, session := risk.CalculateSizeByNYSession(
+		decimal.NewFromFloat(config.KrakenQTD),
+		time.Now(),
+		cfg,
+	)
+
+	logger.
+		WithField("session", session).
+		WithField("finalSize", finalSize).
+		Info("session based risk sizing")
+
 	newOrder := &model.Order{
 		UserID:     user.ID,
 		ExchangeID: exchangeID, // kraken futures
@@ -105,8 +123,9 @@ func OrderControllerKrakenFutures(
 		Side:       FirstLetterUpper(desiredSide),    // Buy/Sell
 		PosSide:    FirstLetterUpper(desiredPosSide), // Long/Short
 		OrderType:  "market",
-		Quantity:   config.KrakenQTD, // add to config
+		Quantity:   finalSize.InexactFloat64(), // add to config
 		Status:     model.OrderExecutionStatusPending,
+		OrderDir:   model.OrderDirectionEntry,
 	}
 	if err := orderRepo.CreateWithAutoLog(ctx, newOrder); err != nil {
 		logger.WithError(err).Error("kraken - failed to create order with auto log")
