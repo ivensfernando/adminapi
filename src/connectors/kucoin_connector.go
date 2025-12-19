@@ -369,7 +369,7 @@ func (k *KucoinConnector) GetAvailableBaseFromUSDT(
 		baseSymbol = strings.TrimSuffix(symbol, "USDT")
 	}
 
-	usdtAvail, err = k.GetFuturesAvailableForSymbol(symbol)
+	usdtAvail, err = k.GetFuturesAvailableFromRiskUnit(symbol)
 	if err != nil {
 		return
 	}
@@ -802,6 +802,14 @@ func (k *KucoinConnector) GetFuturesAvailableForSymbol(symbol string) (float64, 
 	}).Info("KuCoin futures available balance fetched")
 
 	return fut.AvailableBalance, nil
+}
+
+// GetFuturesAvailableFromRiskUnit returns the futures available margin using the
+// risk unit information. For KuCoin USDT-M contracts this currently delegates
+// to GetFuturesAvailableForSymbol while keeping the explicit naming for risk
+// calculations in the controller layer.
+func (k *KucoinConnector) GetFuturesAvailableFromRiskUnit(symbol string) (float64, error) {
+	return k.GetFuturesAvailableForSymbol(symbol)
 }
 
 // GetFuturesContractInfo fetches futures contract details for a specific symbol.
