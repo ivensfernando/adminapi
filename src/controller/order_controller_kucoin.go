@@ -52,7 +52,7 @@ func OrderControllerKucoin(
 
 	signals, err := tradingSignalRepo.FindLatest(ctx, targetSymbol, targetExchange, 1)
 	if err != nil {
-		Capture(ctx, exceptionRepo.(*repository.ExceptionRepository), "OrderControllerKucoin", "controller", "tradingSignalRepo.FindLatest", "error", err, map[string]interface{}{})
+		Capture(ctx, exceptionRepo, "OrderControllerKucoin", "controller", "tradingSignalRepo.FindLatest", "error", err, map[string]interface{}{})
 		return err
 	}
 	if len(signals) == 0 {
@@ -72,7 +72,7 @@ func OrderControllerKucoin(
 
 	//existingOrder, err := orderRepo.FindByExternalIDAndUserID(ctx, user.ID, signal.ID)
 	if err != nil {
-		Capture(ctx, exceptionRepo.(*repository.ExceptionRepository), "OrderControllerKucoin", "controller", "orderRepo.FindByExternalIDAndUser", "error", err, map[string]interface{}{})
+		Capture(ctx, exceptionRepo, "OrderControllerKucoin", "controller", "orderRepo.FindByExternalIDAndUser", "error", err, map[string]interface{}{})
 		return err
 	}
 
@@ -85,13 +85,13 @@ func OrderControllerKucoin(
 
 	_, _, _, price, err := kucoinClient.GetAvailableBaseFromUSDT(symbol)
 	if err != nil {
-		Capture(ctx, exceptionRepo.(*repository.ExceptionRepository), "OrderControllerKucoin", "controller", "kucoinClient.GetAvailableBaseFromUSDT", "error", err, map[string]interface{}{"symbol": symbol})
+		Capture(ctx, exceptionRepo, "OrderControllerKucoin", "controller", "kucoinClient.GetAvailableBaseFromUSDT", "error", err, map[string]interface{}{"symbol": symbol})
 		return err
 	}
 
 	usdtAvail, err := kucoinClient.GetFuturesAvailableFromRiskUnit(symbol)
 	if err != nil {
-		Capture(ctx, exceptionRepo.(*repository.ExceptionRepository), "OrderControllerKucoin", "controller", "kucoinClient.GetFuturesAvailableFromRiskUnit", "error", err, map[string]interface{}{"symbol": symbol})
+		Capture(ctx, exceptionRepo, "OrderControllerKucoin", "controller", "kucoinClient.GetFuturesAvailableFromRiskUnit", "error", err, map[string]interface{}{"symbol": symbol})
 		return err
 	}
 
@@ -109,7 +109,7 @@ func OrderControllerKucoin(
 
 	contracts, usedUSDT, err := kucoinClient.ConvertUSDTToContracts(symbol, value, 1)
 	if err != nil {
-		Capture(ctx, exceptionRepo.(*repository.ExceptionRepository), "OrderControllerKucoin", "controller", "kucoinClient.ConvertUSDTToContracts", "error", err, map[string]interface{}{"symbol": symbol})
+		Capture(ctx, exceptionRepo, "OrderControllerKucoin", "controller", "kucoinClient.ConvertUSDTToContracts", "error", err, map[string]interface{}{"symbol": symbol})
 		return err
 	}
 
@@ -156,7 +156,7 @@ func OrderControllerKucoin(
 
 	mapped, err := mapper.MapKucoinResponseToModel(&payload, newOrder.ID)
 	if err != nil {
-		Capture(ctx, exceptionRepo.(*repository.ExceptionRepository), "OrderControllerKucoin", "controller", "mapper.MapKucoinResponseToModel", "error", err, map[string]interface{}{"symbol": symbol})
+		Capture(ctx, exceptionRepo, "OrderControllerKucoin", "controller", "mapper.MapKucoinResponseToModel", "error", err, map[string]interface{}{"symbol": symbol})
 		_ = orderRepo.UpdateStatusWithAutoLog(ctx, newOrder.ID, model.OrderExecutionStatusError, "failed to map kucoin response")
 		return err
 	}
@@ -167,7 +167,7 @@ func OrderControllerKucoin(
 	}
 
 	if err := kucoinRepo.Create(ctx, mapped); err != nil {
-		Capture(ctx, exceptionRepo.(*repository.ExceptionRepository), "OrderControllerKucoin", "controller", "kucoinRepo.Create", "error", err, map[string]interface{}{"symbol": symbol})
+		Capture(ctx, exceptionRepo, "OrderControllerKucoin", "controller", "kucoinRepo.Create", "error", err, map[string]interface{}{"symbol": symbol})
 		_ = orderRepo.UpdateStatusWithAutoLog(ctx, newOrder.ID, model.OrderExecutionStatusError, "failed to persist kucoin order")
 		return err
 	}

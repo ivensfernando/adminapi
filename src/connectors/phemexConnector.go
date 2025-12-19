@@ -206,6 +206,36 @@ func (c *Client) CancelAll(symbol string) (*APIResponse, error) {
 	return c.doRequest("DELETE", "/g-orders/all", fmt.Sprintf("symbol=%s", symbol), nil)
 }
 
+// CloseAllPositions closes all open positions for the provided symbol by placing reduce-only
+// market orders on the opposite side. Empty positions are skipped without error.
+func (c *Client) CloseAllPositions(symbol string) error {
+	positions, err := c.GetPositionsUSDT()
+	if err != nil {
+		return fmt.Errorf("GetPositionsUSDT failed: %w", err)
+	}
+
+	for _, p := range positions.Positions {
+		if p.Symbol != symbol {
+			continue
+		}
+
+		if strings.TrimSpace(p.SizeRq) == "" || p.SizeRq == "0" {
+			continue
+		}
+
+		closeSide, err := oppositeSide(p.Side)
+		if err != nil {
+			return err
+		}
+
+		if _, err := c.PlaceOrder(p.Symbol, closeSide, p.PosSide, p.SizeRq, "Market", true); err != nil {
+			return fmt.Errorf("failed to close position %s %s (%s): %w", p.Symbol, p.PosSide, p.Side, err)
+		}
+	}
+
+	return nil
+}
+
 // -----------------------------
 // D) ORDER QUERY METHODS
 // -----------------------------

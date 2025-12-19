@@ -6,7 +6,6 @@ import (
 	logger "github.com/sirupsen/logrus"
 	"runtime/debug"
 	"strategyexecutor/src/model"
-	"strategyexecutor/src/repository"
 	"strings"
 	"time"
 )
@@ -78,7 +77,9 @@ func NormalizeToUSDT(symbol string) string {
 // persists it in the database.
 func Capture(
 	ctx context.Context,
-	repo *repository.ExceptionRepository,
+	repo interface {
+		Create(context.Context, *model.Exception) error
+	},
 	service string,
 	module string,
 	method string,

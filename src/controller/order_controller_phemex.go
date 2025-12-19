@@ -37,7 +37,12 @@ type orderRepository interface {
 	CreateWithAutoLog(ctx context.Context, order *model.Order) error
 	UpdateStatusWithAutoLog(ctx context.Context, orderID uint, newStatus string, reason string) error
 	UpdatePriceAutoLog(ctx context.Context, orderID uint, price *float64, reason string) error
+	UpdateStopLoss(ctx context.Context, orderID uint, stopLoss float64) error
 	FindByExchangeIDAndUserID(ctx context.Context, userID uint, exchangeID uint) (*model.Order, error)
+}
+
+type ohlcvRepository interface {
+	GetNextStopLoss(ctx context.Context, symbol string, now time.Time, side tp_sl.Side, currentSL decimal.Decimal, timeframe time.Duration, floor int) (decimal.Decimal, bool, error)
 }
 
 var (
@@ -52,6 +57,9 @@ var (
 	}
 	newOrderRepo = func() orderRepository {
 		return repository.NewOrderRepository()
+	}
+	newOHLCVRepo = func() ohlcvRepository {
+		return repository.NewOHLCVRepositoryRepository()
 	}
 )
 
@@ -76,11 +84,11 @@ func OrderController(
 	logger.Debugf("OrderController INITIALIZED ")
 	logger.Info("starting order controller flow")
 
-	tradingSignalRepo := repository.NewTradingSignalRepository()
-	phemexRepo := repository.NewPhemexOrderRepository()
-	exceptionRepo := repository.NewExceptionRepository()
-	orderRepo := repository.NewOrderRepository()
-	ohlcvRepo := repository.NewOHLCVRepositoryRepository()
+	tradingSignalRepo := newTradingSignalRepo()
+	phemexRepo := newPhemexOrderRepo()
+	exceptionRepo := newExceptionRepo()
+	orderRepo := newOrderRepo()
+	ohlcvRepo := newOHLCVRepo()
 
 	orderSizePercent := userExchange.OrderSizePercent
 

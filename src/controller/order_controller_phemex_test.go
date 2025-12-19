@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
-	"github.com/go-resty/resty/v2"
+	"github.com/shopspring/decimal"
 
 	"strategyexecutor/src/connectors"
 	"strategyexecutor/src/externalmodel"
 	"strategyexecutor/src/model"
+	"strategyexecutor/src/tp_sl"
 )
 
 type mockTradingSignalRepo struct {
@@ -57,7 +59,9 @@ type mockOrderRepo struct {
 	statuses       []string
 }
 
-func (m *mockOrderRepo) FindByExternalIDAndUserID(ctx context.Context, userID uint, externalID uint) (*model.Order, error) {
+var _ orderRepository = (*mockOrderRepo)(nil)
+
+func (m *mockOrderRepo) FindByExternalIDAndUserID(ctx context.Context, userID uint, externalID uint, orderDir string) (*model.Order, error) {
 	if m.findErr != nil {
 		return nil, m.findErr
 	}
@@ -98,8 +102,28 @@ func (m *mockOrderRepo) UpdateResp(ctx context.Context, orderID uint, resp strin
 	return nil
 }
 
+func (m *mockOrderRepo) UpdateStopLoss(ctx context.Context, orderID uint, stopLoss float64) error {
+	if m.updateErr != nil {
+		return m.updateErr
+	}
+	return nil
+}
+
 func (m *mockOrderRepo) FindByExchangeIDAndUserID(ctx context.Context, userID uint, exchangeID uint) (*model.Order, error) {
 	return nil, nil
+}
+
+type mockOHLCVRepo struct {
+	newSL    decimal.Decimal
+	isRaised bool
+	err      error
+}
+
+func (m *mockOHLCVRepo) GetNextStopLoss(ctx context.Context, symbol string, now time.Time, side tp_sl.Side, currentSL decimal.Decimal, timeframe time.Duration, floor int) (decimal.Decimal, bool, error) {
+	if m.err != nil {
+		return decimal.Decimal{}, false, m.err
+	}
+	return m.newSL, m.isRaised, nil
 }
 
 type pos struct {
@@ -239,15 +263,11 @@ func buildPhemexTestClient(t *testing.T, cfg serverConfig) *connectors.Client {
 	}))
 	t.Cleanup(server.Close)
 
-	restyClient := resty.New().SetBaseURL(server.URL)
-	restyClient.SetTransport(server.Client().Transport)
-
-	return nil //connectors.NewClientWithResty("k", "s", server.URL, restyClient)
+	return connectors.NewClient("k", "s", server.URL)
 }
 
-// TestOrderControllerFlows exercises the different Phemex order controller
-// scenarios to ensure signals and orders are handled correctly across error
-// and success paths.
+// TestOrderControllerFlows exercises Phemex order controller scenarios to ensure signals and orders
+// are handled correctly across error and success paths.
 func TestOrderControllerFlows(t *testing.T) {
 	// Table-driven scenarios covering the most important branches of the
 	// order execution flow for the Phemex exchange.
@@ -257,6 +277,7 @@ func TestOrderControllerFlows(t *testing.T) {
 		orderRepo             *mockOrderRepo
 		phemexRepo            *mockPhemexOrderRepo
 		exceptionRepo         *mockExceptionRepo
+		ohlcvRepo             *mockOHLCVRepo
 		client                *connectors.Client
 		expectError           bool
 		expectOrder           bool
@@ -271,6 +292,7 @@ func TestOrderControllerFlows(t *testing.T) {
 			orderRepo:             &mockOrderRepo{},
 			phemexRepo:            &mockPhemexOrderRepo{},
 			exceptionRepo:         &mockExceptionRepo{},
+			ohlcvRepo:             &mockOHLCVRepo{isRaised: false},
 			client:                buildPhemexTestClient(t, serverConfig{available: 100, ticker: "50000", positionsFirst: []pos{{Symbol: "BTCUSDT", Side: "Buy", PosSide: "Long", SizeRq: "1"}}, positionsSecond: []pos{{Symbol: "BTCUSDT", Side: "Buy", PosSide: "Long", SizeRq: "1"}}}),
 			expectOrder:           true,
 			expectedStatus:        []string{model.OrderExecutionStatusPending, model.OrderExecutionStatusFilled},
@@ -402,23 +424,32 @@ func TestOrderControllerFlows(t *testing.T) {
 			originalPhemex := newPhemexOrderRepo
 			originalException := newExceptionRepo
 			originalOrder := newOrderRepo
+			originalOHLCV := newOHLCVRepo
 			defer func() {
 				newTradingSignalRepo = originalTrading
 				newPhemexOrderRepo = originalPhemex
 				newExceptionRepo = originalException
 				newOrderRepo = originalOrder
+				newOHLCVRepo = originalOHLCV
 			}()
 
 			newTradingSignalRepo = func() tradingSignalRepository { return tc.tradingRepo }
 			newPhemexOrderRepo = func() phemexOrderRepository { return tc.phemexRepo }
 			newExceptionRepo = func() exceptionRepository { return tc.exceptionRepo }
 			newOrderRepo = func() orderRepository { return tc.orderRepo }
+			newOHLCVRepo = func() ohlcvRepository {
+				if tc.ohlcvRepo != nil {
+					return tc.ohlcvRepo
+				}
+				return &mockOHLCVRepo{}
+			}
 
 			user := &model.User{ID: 1, Username: "tester"}
 
 			// Execute the controller logic with the configured test
 			// client and capture any returned error for assertions.
-			err := OrderController(context.Background(), tc.client, user, 50, 1, "BTCUSDT", "phemex")
+			userExchange := &model.UserExchange{OrderSizePercent: 50}
+			err := OrderController(context.Background(), tc.client, user, uint(1), "BTCUSDT", "phemex", userExchange)
 			if tc.expectError && err == nil {
 				t.Fatalf("expected error, got nil")
 			}
