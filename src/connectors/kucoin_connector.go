@@ -604,14 +604,18 @@ func (k *KucoinConnector) ExecuteFuturesOrderLeverage(
 		"leverage": leverage,
 	}).Info("Executing KuCoin futures order with leverage")
 
-	// 1) Set leverage first
-	if err := k.SetFuturesLeverage(symbol, leverage); err != nil {
-		logger.WithFields(logger.Fields{
-			"symbol":   symbol,
-			"leverage": leverage,
-			"error":    err,
-		}).Error("Failed to set leverage before placing order")
-		return nil, err
+	// 1) Set leverage first (if a positive leverage was provided)
+	if leverage > 0 {
+		if err := k.SetFuturesLeverage(symbol, leverage); err != nil {
+			logger.WithFields(logger.Fields{
+				"symbol":   symbol,
+				"leverage": leverage,
+				"error":    err,
+			}).Error("Failed to set leverage before placing order")
+			return nil, err
+		}
+	} else {
+		logger.WithField("symbol", symbol).Info("Skipping leverage setup for KuCoin futures order")
 	}
 
 	// 2) Generate client OID

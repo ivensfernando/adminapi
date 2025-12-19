@@ -135,7 +135,7 @@ func OrderControllerKucoin(
 		return err
 	}
 
-	resp, err := kucoinClient.ExecuteFuturesOrderLeverage(newOrder.Symbol, newOrder.Side, "market", contracts, nil, 1, false)
+	resp, err := kucoinClient.ExecuteFuturesOrderLeverage(newOrder.Symbol, newOrder.Side, "market", contracts, nil, 0, false)
 	if err != nil {
 		logger.WithError(err).Errorf("failed to place kucoin futures order for symbol %s", symbol)
 		_ = orderRepo.UpdateStatusWithAutoLog(ctx, newOrder.ID, model.OrderExecutionStatusError, "failed to place kucoin futures order")
