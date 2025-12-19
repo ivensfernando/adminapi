@@ -46,7 +46,6 @@ func main() {
 	}
 
 	//server.StartServer(config.Port)
-
 	//config := executors.GetConfig()
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
@@ -61,7 +60,6 @@ func main() {
 		logger.WithError(err).Error("Failed to start minute loop")
 		return
 	}
-
 }
 
 func handlePanic() {

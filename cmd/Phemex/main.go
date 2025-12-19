@@ -4,11 +4,12 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	logger "github.com/sirupsen/logrus"
 	"os"
 	"strategyexecutor/src/connectors"
 	"strconv"
 	"strings"
+
+	logger "github.com/sirupsen/logrus"
 )
 
 func SetupLogger() {
@@ -208,7 +209,7 @@ func main() {
 
 	if baseURL == "" {
 		baseURL = "https://testnet-api.phemex.com"
-		logger.Warn("No base URL provided, using default: %s", baseURL)
+		logger.Warnf("No base URL provided, using default: %s", baseURL)
 	}
 
 	if apiKey == "" || apiSecret == "" {

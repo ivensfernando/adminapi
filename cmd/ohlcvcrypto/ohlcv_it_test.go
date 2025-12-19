@@ -45,7 +45,6 @@ func TestFetchOHLCVFromBinance(t *testing.T) {
 
 	// Fetch the OHLCV series
 	klines, err := ohlcv.fetchOHLCVSeries()
-
 	require.NoError(t, err, "Should fetch OHLCV data without error")
 	require.NotEmpty(t, klines, "Should return non-empty OHLCV data")
 
