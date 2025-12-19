@@ -11,8 +11,8 @@ const (
 	//OrderExecutionStatusAccepted   = "accepted"
 	//OrderExecutionStatusRejected   = "rejected"
 	//OrderExecutionStatusPartFilled = "part_filled"
-	OrderExecutionStatusFilled        = "filled"
-	OrderExecutionStatusCanceled      = "canceled"
+	OrderExecutionStatusFilled = "filled"
+	//OrderExecutionStatusCanceled   = "canceled"
 	OrderExecutionStatusError         = "error"
 	OrderExecutionStatusCanceledError = "canceled_error"
 )

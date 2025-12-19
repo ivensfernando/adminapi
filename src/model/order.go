@@ -2,6 +2,11 @@ package model
 
 import "time"
 
+const (
+	OrderDirectionEntry = "entry"
+	OrderDirectionExit  = "exit"
+)
+
 // Order represents an order that your system sends to the exchange.
 type Order struct {
 	ID uint `gorm:"primaryKey" json:"id"`
@@ -21,6 +26,7 @@ type Order struct {
 	StopLossPct   float64  `json:"stop_loss_pct"`
 	TakeProfitPct float64  `json:"take_profit_pct"`
 	Status        string   `gorm:"size:50;not null;default:pending" json:"status"`
+	OrderDir      string   `gorm:"-" json:"order_dir"` //entry , exit
 	//TriggeredByAlertID *uint      `json:"triggered_by_alert_id,omitempty"`
 	ExecutedAt *time.Time `json:"executed_at,omitempty"`
 	CreatedAt  time.Time  `json:"created_at"`

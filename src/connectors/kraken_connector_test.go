@@ -27,6 +27,11 @@ func GetConfigKraken() ConfigKraken {
 }
 
 func TestKrakenFutures_BasicFlow_MarketOrder_StopLoss_Verify(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+		return
+	}
+
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)

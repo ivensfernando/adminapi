@@ -266,6 +266,7 @@ func (r *OrderRepository) FindByExternalIDAndUserID(
 	ctx context.Context,
 	userID uint,
 	externalID uint,
+	orderDir string,
 ) (*model.Order, error) {
 
 	logger.WithFields(map[string]interface{}{
@@ -278,7 +279,7 @@ func (r *OrderRepository) FindByExternalIDAndUserID(
 	var order model.Order
 
 	err := r.db.WithContext(ctx).
-		Where("external_id = ? AND user_id = ?", externalID, userID).
+		Where("external_id = ? AND user_id = ? and order_dir = ?", externalID, userID, orderDir).
 		Order("created_at DESC").
 		First(&order).Error
 
@@ -355,40 +356,42 @@ func (r *OrderRepository) UpdateStatus(
 	return nil
 }
 
-func (r *OrderRepository) UpdateResp(
+// UpdateStopLoss updates only the SL of the given order ID.
+func (r *OrderRepository) UpdateStopLoss(
 	ctx context.Context,
 	id uint,
-	resp string,
-	status string,
+	stopLoss float64,
 ) error {
 
 	logger.WithFields(map[string]interface{}{
-		"repo":   "OrderRepository",
-		"op":     "UpdateResp",
-		"id":     id,
-		"status": status,
-	}).Debug("Updating order exchange response")
+		"repo":          "OrderRepository",
+		"op":            "UpdateStatus",
+		"id":            id,
+		"stop_loss_pct": stopLoss,
+	}).Debug("Updating order SL")
 
 	err := r.db.WithContext(ctx).
 		Model(&model.Order{}).
 		Where("id = ?", id).
-		Update("exchange_resp", resp).Error
+		Update("stop_loss_pct", stopLoss).Error
 
 	if err != nil {
 		logger.WithFields(map[string]interface{}{
-			"repo": "OrderRepository",
-			"op":   "UpdateResp",
-			"id":   id,
-		}).WithError(err).Error("Failed to update order exchange response")
+			"repo":          "OrderRepository",
+			"op":            "UpdateStatus",
+			"id":            id,
+			"stop_loss_pct": stopLoss,
+		}).WithError(err).Error("Failed to update order status")
 
 		return err
 	}
 
 	logger.WithFields(map[string]interface{}{
-		"repo": "OrderRepository",
-		"op":   "UpdateResp",
-		"id":   id,
-	}).Info("Order exchange response updated")
+		"repo":          "OrderRepository",
+		"op":            "UpdateStatus",
+		"id":            id,
+		"stop_loss_pct": stopLoss,
+	}).Info("Order stop_loss updated successfully")
 
 	return nil
 }

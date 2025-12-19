@@ -25,6 +25,11 @@ func GetConfig() Config {
 }
 
 func TestGooeyTrade_CloseOpenPositionsAndPlaceOrder(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+		return
+	}
+
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)

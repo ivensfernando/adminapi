@@ -11,6 +11,10 @@ import (
 
 // Test fetching OHLCV data directly from Binance without mocks.
 func TestFetchOHLCVFromBinance(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+		return
+	}
 	db, _ := setupDBMock(t)
 
 	// Set up the configuration

@@ -454,3 +454,198 @@ func (c *Client) CloseAllPositions(symbol string) error {
 
 	return nil
 }
+
+// -----------------------------
+// C2) STOP LOSS (CONDITIONAL STOP) METHODS
+// -----------------------------
+
+// TriggerType values. See docs for allowed trigger sources.
+// Examples: ByMarkPrice, ByIndexPrice, ByLastPrice, ByAskPrice, ByBidPrice, ByMarkPriceLimit, ByLastPriceLimit.
+const (
+	TriggerByMarkPrice      = "ByMarkPrice"
+	TriggerByIndexPrice     = "ByIndexPrice"
+	TriggerByLastPrice      = "ByLastPrice"
+	TriggerByAskPrice       = "ByAskPrice"
+	TriggerByBidPrice       = "ByBidPrice"
+	TriggerByMarkPriceLimit = "ByMarkPriceLimit"
+	TriggerByLastPriceLimit = "ByLastPriceLimit"
+)
+
+// oppositeSide returns the order side needed to reduce or close a position.
+// If position side is Buy (long), the reduce side is Sell. If Sell (short), the reduce side is Buy.
+func oppositeSide(positionSide string) (string, error) {
+	switch positionSide {
+	case "Buy":
+		return "Sell", nil
+	case "Sell":
+		return "Buy", nil
+	default:
+		return "", fmt.Errorf("unknown position side: %s", positionSide)
+	}
+}
+
+func mustNonEmpty(name, v string) error {
+	if strings.TrimSpace(v) == "" {
+		return fmt.Errorf("%s must be non-empty", name)
+	}
+	return nil
+}
+
+// PlaceStopLossOrder places a conditional STOP (stop market) order intended to act as a stop loss.
+// It is reduceOnly by default. Optionally enable closeOnTrigger.
+// stopPxRp is the trigger price for Stop orders. triggerType controls the trigger source.
+func (c *Client) PlaceStopLossOrder(
+	symbol string,
+	posSide string, // "Long" or "Short" in hedged mode, "Merged" in one-way mode
+	side string, // "Buy" or "Sell" (must be opposite of the position direction to reduce)
+	qty string,
+	stopPxRp string,
+	triggerType string,
+	closeOnTrigger bool,
+) (*APIResponse, error) {
+
+	if err := mustNonEmpty("symbol", symbol); err != nil {
+		return nil, err
+	}
+	if err := mustNonEmpty("posSide", posSide); err != nil {
+		return nil, err
+	}
+	if err := mustNonEmpty("side", side); err != nil {
+		return nil, err
+	}
+	if err := mustNonEmpty("qty", qty); err != nil {
+		return nil, err
+	}
+	if err := mustNonEmpty("stopPxRp", stopPxRp); err != nil {
+		return nil, err
+	}
+	if triggerType == "" {
+		triggerType = TriggerByMarkPrice
+	}
+
+	// Conditional stop order. For stop loss behavior we want:
+	// - ordType=Stop
+	// - stopPxRp as trigger price
+	// - reduceOnly=true so it cannot flip the position
+	// - closeOnTrigger optional: implicitly reduceOnly, plus cancels other orders in same direction when necessary
+	// - timeInForce=GoodTillCancel so the stop remains working
+	body := map[string]interface{}{
+		"symbol":         symbol,
+		"posSide":        posSide,
+		"side":           side,
+		"ordType":        "Stop",
+		"orderQtyRq":     qty,
+		"stopPxRp":       stopPxRp,
+		"triggerType":    triggerType,
+		"reduceOnly":     true,
+		"closeOnTrigger": closeOnTrigger,
+		"timeInForce":    "GoodTillCancel",
+		"text":           "stoploss",
+		"clOrdID":        fmt.Sprintf("go-sl-%d", time.Now().UnixNano()),
+	}
+
+	b, _ := json.Marshal(body)
+	return c.doRequest("POST", "/g-orders", "", b)
+}
+
+// SetStopLossForOpenPosition finds the currently open position for (symbol, posSide)
+// and places a reduce-only STOP order for the full position size.
+// This is the safe way to do "set stop loss without a position ID".
+func (c *Client) SetStopLossForOpenPosition(
+	symbol string,
+	posSide string, // "Long" or "Short" in hedged mode
+	stopPxRp string,
+	triggerType string,
+	closeOnTrigger bool,
+) (*APIResponse, error) {
+
+	if err := mustNonEmpty("symbol", symbol); err != nil {
+		return nil, err
+	}
+	if err := mustNonEmpty("posSide", posSide); err != nil {
+		return nil, err
+	}
+	if err := mustNonEmpty("stopPxRp", stopPxRp); err != nil {
+		return nil, err
+	}
+
+	positions, err := c.GetPositionsUSDT()
+	if err != nil {
+		return nil, fmt.Errorf("GetPositionsUSDT failed: %w", err)
+	}
+
+	for _, p := range positions.Positions {
+		if p.Symbol != symbol {
+			continue
+		}
+		if p.PosSide != posSide {
+			continue
+		}
+		if p.SizeRq == "" || p.SizeRq == "0" {
+			return nil, fmt.Errorf("no open position for %s %s (size=0)", symbol, posSide)
+		}
+
+		closeSide, err := oppositeSide(p.Side)
+		if err != nil {
+			return nil, err
+		}
+
+		logger.WithFields(map[string]interface{}{
+			"symbol":         symbol,
+			"posSide":        posSide,
+			"positionSide":   p.Side,
+			"size":           p.SizeRq,
+			"stopPxRp":       stopPxRp,
+			"triggerType":    triggerType,
+			"closeOnTrigger": closeOnTrigger,
+			"orderSide":      closeSide,
+		}).Info("Placing stop loss order for open position")
+
+		return c.PlaceStopLossOrder(
+			symbol,
+			posSide,
+			closeSide,
+			p.SizeRq,
+			stopPxRp,
+			triggerType,
+			closeOnTrigger,
+		)
+	}
+
+	return nil, fmt.Errorf("position not found for %s %s", symbol, posSide)
+}
+
+// SetStopLossForSymbolHedgeMode Set SL for both Long and Short if they exist.
+// Pass empty stop price to skip a side.
+func (c *Client) SetStopLossForSymbolHedgeMode(
+	symbol string,
+	longStopPxRp string,
+	shortStopPxRp string,
+	triggerType string,
+	closeOnTrigger bool,
+) ([]*APIResponse, error) {
+
+	var out []*APIResponse
+
+	if strings.TrimSpace(longStopPxRp) != "" {
+		r, err := c.SetStopLossForOpenPosition(symbol, "Long", longStopPxRp, triggerType, closeOnTrigger)
+		if err != nil {
+			return out, err
+		}
+		out = append(out, r)
+	}
+
+	if strings.TrimSpace(shortStopPxRp) != "" {
+		r, err := c.SetStopLossForOpenPosition(symbol, "Short", shortStopPxRp, triggerType, closeOnTrigger)
+		if err != nil {
+			return out, err
+		}
+		out = append(out, r)
+	}
+
+	if len(out) == 0 {
+		return out, fmt.Errorf("no stop prices provided")
+	}
+
+	return out, nil
+}

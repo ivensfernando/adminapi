@@ -61,7 +61,7 @@ func OrderControllerHydra(
 	// 2) Check if an order already exists for this signal
 	// ------------------------------------------------------------------
 
-	existingOrder, err := orderRepo.FindByExternalIDAndUserID(ctx, user.ID, signal.ID)
+	existingOrder, err := orderRepo.FindByExternalIDAndUserID(ctx, user.ID, signal.ID, model.OrderDirectionEntry)
 	if err != nil {
 		logger.WithError(err).Error("hydra - failed to fetch latest trading signal")
 		Capture(

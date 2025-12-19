@@ -7,6 +7,7 @@ import (
 	"strategyexecutor/src/externalmodel"
 	"strategyexecutor/src/mapper"
 	"strategyexecutor/src/risk"
+	"strategyexecutor/src/tp_sl"
 	"strconv"
 	"strings"
 	"time"
@@ -32,11 +33,10 @@ type exceptionRepository interface {
 }
 
 type orderRepository interface {
-	FindByExternalIDAndUserID(ctx context.Context, userID uint, externalID uint) (*model.Order, error)
+	FindByExternalIDAndUserID(ctx context.Context, userID uint, externalID uint, orderDir string) (*model.Order, error)
 	CreateWithAutoLog(ctx context.Context, order *model.Order) error
 	UpdateStatusWithAutoLog(ctx context.Context, orderID uint, newStatus string, reason string) error
 	UpdatePriceAutoLog(ctx context.Context, orderID uint, price *float64, reason string) error
-	UpdateResp(ctx context.Context, orderID uint, resp string, status string) error
 	FindByExchangeIDAndUserID(ctx context.Context, userID uint, exchangeID uint) (*model.Order, error)
 }
 
@@ -80,6 +80,7 @@ func OrderController(
 	phemexRepo := repository.NewPhemexOrderRepository()
 	exceptionRepo := repository.NewExceptionRepository()
 	orderRepo := repository.NewOrderRepository()
+	ohlcvRepo := repository.NewOHLCVRepositoryRepository()
 
 	// ------------------------------------------------------------------
 	// 1) Fetch the latest TradingSignal (from read-only DB)
@@ -118,7 +119,7 @@ func OrderController(
 	// 2) Check if an order already exists for this signal
 	// ------------------------------------------------------------------
 
-	existingOrder, err := orderRepo.FindByExternalIDAndUserID(ctx, user.ID, signal.ID)
+	existingOrder, err := orderRepo.FindByExternalIDAndUserID(ctx, user.ID, signal.ID, model.OrderDirectionEntry)
 	if err != nil {
 		logger.WithError(err).Error("failed to fetch latest trading signal")
 		Capture(
@@ -140,8 +141,57 @@ func OrderController(
 			Info("order already exists for this signal, checking status")
 
 		if existingOrder.Status == model.OrderExecutionStatusFilled {
+
+			// check if we can raise the SL
 			logger.WithField("order_id", existingOrder.ID).
-				Info("order already filled, skipping")
+				Info("order already filled, will check if we can raise the SL")
+
+			side := tp_sl.SideLong
+			if existingOrder.PosSide == "Short" {
+				side = tp_sl.SideShort
+			}
+
+			newSL, isRaised, err := ohlcvRepo.GetNextStopLoss(
+				ctx,
+				existingOrder.Symbol,
+				time.Now(),
+				side,
+				decimal.NewFromFloat(existingOrder.StopLossPct),
+				15*time.Minute, // compute SL on 15m structure
+				45,             // floor average over last 45 bars
+			)
+			if err != nil {
+				logger.WithError(err).Error("failed to GetNextStopLoss")
+				return err
+			}
+
+			if !isRaised {
+				logger.
+					WithField("order_id", existingOrder.ID).
+					WithField("stop_loss_pct", existingOrder.StopLossPct).
+					Info("order SL already set, nothing to do")
+				return nil
+			}
+
+			_, err = phemexClient.SetStopLossForOpenPosition(
+				"BTCUSDT",
+				"Long",
+				newSL.String(),
+				connectors.TriggerByMarkPrice,
+				true)
+			if err != nil {
+				logger.WithError(err).Error("failed to SetStopLossForOpenPosition")
+				return err
+			}
+
+			err = orderRepo.UpdateStopLoss(ctx, existingOrder.ID, newSL.InexactFloat64())
+			if err != nil {
+				logger.WithError(err).Error("failed to UpdateStopLoss")
+				return err
+			}
+
+			// update SL
+
 			return nil
 		}
 
@@ -165,15 +215,40 @@ func OrderController(
 		cfg,
 	)
 
-	value = finalSize.InexactFloat64()
+	valueWithRisk := finalSize.InexactFloat64()
 
 	logger.
 		WithField("session", session).
 		WithField("baseSize", value).
 		WithField("finalSize", finalSize).
+		WithField("valueWithRisk", valueWithRisk).
+		WithField("Symbol", symbol).
 		Info("session based risk sizing")
 
-	logger.WithField("value", value).
+	// check if we can place the order based on risk settings
+	if valueWithRisk <= 0 || session == risk.SessionNoTrade {
+		logger.
+			WithField("session", session).
+			WithField("baseSize", value).
+			WithField("finalSize", finalSize).
+			WithField("valueWithRisk", valueWithRisk).
+			WithField("Symbol", symbol).
+			Warn("risk sizing - unable to place order due to risk settings")
+
+		if err := phemexClient.CloseAllPositions(symbol); err != nil {
+			logger.WithError(err).
+				WithField("symbol", symbol).
+				Error("failed to close all positions")
+			return err
+		}
+		return nil
+	}
+
+	logger.
+		WithField("session", session).
+		WithField("baseSize", value).
+		WithField("finalSize", finalSize).
+		WithField("valueWithRisk", valueWithRisk).
 		WithField("Symbol", symbol).
 		Debug("Value of order in ")
 	// ------------------------------------------------------------------
@@ -188,8 +263,9 @@ func OrderController(
 		Side:       FirstLetterUpper(signal.Action),  // buy/sell
 		PosSide:    FirstLetterUpper(signal.OrderID), //Short/Long
 		OrderType:  "market",
-		Quantity:   value, //
-		Status:     model.OrderExecutionStatusFilled,
+		Quantity:   valueWithRisk, //
+		Status:     model.OrderExecutionStatusPending,
+		OrderDir:   model.OrderDirectionEntry,
 	}
 
 	if err := orderRepo.CreateWithAutoLog(ctx, newOrder); err != nil {
@@ -203,7 +279,7 @@ func OrderController(
 	// 4) Close all existing positions for this symbol on Phemex
 	// ------------------------------------------------------------------
 
-	if err := closeAllPositions(ctx, phemexClient, user, exchangeID, newOrder.Symbol); err != nil {
+	if err := closeAllPositions(ctx, phemexClient, user, exchangeID, signal.ID, newOrder.Symbol); err != nil {
 		logger.WithError(err).
 			WithField("symbol", newOrder.Symbol).
 			Error("failed to close all positions")
@@ -349,42 +425,8 @@ func OrderController(
 				"qty":    quantityStr,
 			},
 		)
-		_ = orderRepo.UpdateStatusWithAutoLog(
-			ctx,
-			newOrder.ID,
-			model.OrderExecutionStatusError,
-			"failed to persist phemex order",
-		)
-
-		return err
 	} else {
 		if err := orderRepo.UpdateStatusWithAutoLog(ctx, newOrder.ID, model.OrderExecutionStatusPending, "order placed on Phemex successfully"); err != nil {
-		}
-	}
-
-	// opcional: salvar JSON bruto da resposta na tabela Order
-	rawJSON, err := json.MarshalIndent(resp.Data, "", "  ")
-	if err != nil {
-		logger.WithError(err).Error("failed to marshal phemex raw response for storage")
-		_ = orderRepo.UpdateStatusWithAutoLog(
-			ctx,
-			newOrder.ID,
-			model.OrderExecutionStatusError,
-			"failed to persist phemex order",
-		)
-		Capture(
-			ctx,
-			exceptionRepo,
-			"OrderController",
-			"controller",
-			"json.MarshalIndent(resp.Data, \"\", \"  \")",
-			"error",
-			err,
-			map[string]interface{}{},
-		)
-	} else {
-		if err := orderRepo.UpdateResp(ctx, newOrder.ID, string(rawJSON), model.OrderExecutionStatusPending); err != nil {
-			logger.WithError(err).Error("failed to update order exchange_resp")
 		}
 	}
 
@@ -455,6 +497,7 @@ func closeAllPositions(
 	phemexClient *connectors.Client,
 	user *model.User,
 	exchangeID uint,
+	signalID uint,
 	symbol string,
 ) error {
 
@@ -484,21 +527,6 @@ func closeAllPositions(
 			continue
 		}
 
-		//p.Side  p.SizeRq, p.SizeRq, user.ID, exchangeID
-		order, err := orderRepo.FindByExchangeIDAndUserID(ctx, user.ID, exchangeID)
-		if err != nil {
-			return fmt.Errorf("FindByExchangeIDAndUserID failed: %w", err)
-		}
-
-		if order != nil {
-			logger.WithFields(map[string]interface{}{
-				"order_id": order.ID,
-				"symbol":   order.Symbol,
-			}).Info("Order already exists, skipping close position")
-			//continue
-
-		}
-
 		// Determine the opposite side required to close the position
 		var closeSide string
 		switch p.Side {
@@ -513,6 +541,32 @@ func closeAllPositions(
 			}).Error("Unknown position side, skipping")
 			continue
 		}
+
+		quantity, err := strconv.ParseFloat(p.SizeRq, 64)
+		if err != nil {
+			logger.WithError(err).Error("failed to parse SizeRq to float")
+			return err
+		}
+
+		exitOrder := &model.Order{
+			UserID:     user.ID,
+			ExchangeID: exchangeID, // Phemex
+			ExternalID: signalID,
+			Symbol:     symbol,    //signal.Symbol, "BTCUSDT"
+			Side:       p.PosSide, // buy/sell
+			PosSide:    closeSide, //Short/Long
+			OrderType:  "market",
+			Quantity:   quantity, //
+			Status:     model.OrderExecutionStatusPending,
+			OrderDir:   model.OrderDirectionExit,
+		}
+
+		if err := orderRepo.CreateWithAutoLog(ctx, exitOrder); err != nil {
+			logger.WithError(err).Error("failed to create exit order with auto log")
+			return err
+		}
+
+		logger.WithField("order_id", exitOrder.ID).Info("new exit order created")
 
 		logger.WithFields(map[string]interface{}{
 			"symbol":    p.Symbol,
@@ -557,12 +611,36 @@ func closeAllPositions(
 
 			_ = orderRepo.UpdateStatusWithAutoLog(
 				ctx,
-				order.ID,
+				exitOrder.ID,
 				model.OrderExecutionStatusCanceledError,
 				"phemex returned non-zero code while placing order",
 			)
 
 			return fmt.Errorf("phemex error %d: %s", resp.Code, resp.Msg)
+		} else {
+			if err := orderRepo.UpdateStatusWithAutoLog(
+				ctx,
+				exitOrder.ID,
+				model.OrderExecutionStatusFilled,
+				"order executed successfully on phemex",
+			); err != nil {
+				logger.WithError(err).Error("failed to update order final status")
+				Capture(
+					ctx,
+					exceptionRepo,
+					"OrderController closeAllPositions",
+					"controller",
+					"orderRepo.UpdateStatusWithAutoLog",
+					"error",
+					err,
+					map[string]interface{}{
+						"symbol": exitOrder.Symbol,
+						"side":   exitOrder.Side,
+						"qty":    quantity,
+					},
+				)
+				return err
+			}
 		}
 
 		var payload model.PhemexOrderResponse
@@ -570,38 +648,24 @@ func closeAllPositions(
 		if err := json.Unmarshal(resp.Data, &payload); err != nil {
 			logger.WithFields(map[string]interface{}{
 				"symbol": p.Symbol,
-			}).WithError(err).Error("failed to unmarshal phemex response payload")
-
-			_ = orderRepo.UpdateStatusWithAutoLog(
-				ctx,
-				order.ID,
-				model.OrderExecutionStatusCanceledError,
-				"failed to decode phemex response",
-			)
-
+			}).WithError(err).Error("closeAllPositions failed to unmarshal phemex response payload")
 			return err
 		}
 
 		// Map API payload -> DB model (versão safe)
-		ord, err := mapper.MapPhemexResponseToModel(&payload, order.ID)
+		ord, err := mapper.MapPhemexResponseToModel(&payload, exitOrder.ID)
 		if err != nil {
-			logger.WithError(err).Error("failed to map phemex response to model")
+			logger.WithError(err).Error("closeAllPositions failed to map phemex response to model")
 
 			Capture(
 				ctx,
 				exceptionRepo,
-				"OrderController",
+				"OrderController closeAllPositions",
 				"controller",
 				"mapper.MapPhemexResponseToModel",
 				"error",
 				err,
 				map[string]interface{}{},
-			)
-			_ = orderRepo.UpdateStatusWithAutoLog(
-				ctx,
-				order.ID,
-				model.OrderExecutionStatusError,
-				"failed to map phemex response to model",
 			)
 
 			return err
@@ -609,12 +673,12 @@ func closeAllPositions(
 
 		// Persist Phemex order in DB
 		if err := phemexRepo.Create(ctx, ord); err != nil {
-			logger.WithError(err).Error("failed to persist phemex order")
+			logger.WithError(err).Error("closeAllPositions failed to persist phemex order")
 
 			Capture(
 				ctx,
 				exceptionRepo,
-				"OrderController",
+				"OrderController closeAllPositions",
 				"controller",
 				"phemexRepo.Create",
 				"error",
@@ -622,20 +686,10 @@ func closeAllPositions(
 				map[string]interface{}{
 					"symbol": p.Symbol,
 					"side":   p.Side,
-					//"qty":    p.,
 				},
-			)
-			_ = orderRepo.UpdateStatusWithAutoLog(
-				ctx,
-				order.ID,
-				model.OrderExecutionStatusError,
-				"failed to persist phemex order",
 			)
 
 			return err
-		} else {
-			if err := orderRepo.UpdateStatusWithAutoLog(ctx, order.ID, model.OrderExecutionStatusPending, "order placed on Phemex successfully"); err != nil {
-			}
 		}
 
 	}

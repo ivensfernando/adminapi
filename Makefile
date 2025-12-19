@@ -94,9 +94,28 @@ clean: ## Remove build artifacts and temporary files
 # -----------------------------
 # Testing and Quality
 # -----------------------------
+install_tooling: ## Install linters
+	go install mvdan.cc/gofumpt@v0.1.1
+	go install golang.org/x/tools/cmd/goimports@v0.1.1
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
+	go install gotest.tools/gotestsum@v1.6.4
+	go install github.com/jstemmer/go-junit-report@v0.9.1
+	go install github.com/axw/gocov/gocov@v1.0.0
+	go install github.com/AlekSi/gocov-xml@v0.0.0-20190121064608-3a14fb1c4737
+	go install golang.org/x/vuln/cmd/govulncheck@latest
+
 test: ## Run tests with race detection
-	@echo "${BLUE}Running tests...${NC}"
-	@$(GOTEST) $(TEST_FLAGS) ./...
+	which gotestsum || ( \
+		make install_tooling \
+	)
+	ENVIRONMENT=prod gotestsum --format testname --junitfile ./test.xml -- -timeout=7m -coverprofile=coverage.out -count=1 -test.short ./...
+	tail -n +2 coverage.out >> ./sonar/coverage-all.out
+	go tool cover -html=./coverage.out -o coverage.html
+	gocov convert ./coverage.out | gocov-xml > ./coverage.xml
+	mv coverage.out  ./sonar/${TEST_FOLDER}_coverage.out
+	mv coverage.xml  ./sonar/${TEST_FOLDER}_coverage.xml
+	mv coverage.html  ./sonar/${TEST_FOLDER}_coverage.html
+	mv test.xml  ./sonar/${TEST_FOLDER}_test.xml
 
 coverage: ## Generate test coverage report
 	@echo "${BLUE}Generating coverage report...${NC}"
@@ -181,3 +200,22 @@ secret:
 
 # Default target
 .DEFAULT_GOAL := help
+
+
+send_long_manual:
+	curl -X POST https://api.biidin.com/api/tv/signal \
+	  -H "Content-Type: application/json" \
+	  -d '{ "id": "Long", "symbol": "BTCUSD", "action": "buy", "qty": "1.402926", "price": "87068.01", "type": "Market", "marketPosition": "long", "prevMarketPosition": "short", "marketPositionSize": "0.700223", "prevMarketPositionSize": "0.702703", "signalToken": "manual_trade", "timestamp": "2025-12-17T13:30:01Z", "comment": "Long", "message": "", "exchange_name": "phemex"}'
+
+	curl -X POST https://api.biidin.com/api/tv/signal \
+	  -H "Content-Type: application/json" \
+	  -d '{ "id": "Long", "symbol": "BTCUSD", "action": "buy", "qty": "1.402926", "price": "87068.01", "type": "Market", "marketPosition": "long", "prevMarketPosition": "short", "marketPositionSize": "0.700223", "prevMarketPositionSize": "0.702703", "signalToken": "manual_trade", "timestamp": "2025-12-17T13:30:01Z", "comment": "Long", "message": "", "exchange_name": "kraken"}'
+
+	curl -X POST https://api.biidin.com/api/tv/signal \
+	  -H "Content-Type: application/json" \
+	  -d '{ "id": "Long", "symbol": "BTCUSD", "action": "buy", "qty": "1.402926", "price": "87068.01", "type": "Market", "marketPosition": "long", "prevMarketPosition": "short", "marketPositionSize": "0.700223", "prevMarketPositionSize": "0.702703", "signalToken": "manual_trade", "timestamp": "2025-12-17T13:30:01Z", "comment": "Long", "message": "", "exchange_name": "coinbase"}'
+
+	curl -X POST https://api.biidin.com/api/tv/signal \
+	  -H "Content-Type: application/json" \
+	  -d '{ "id": "Long", "symbol": "BTCUSD", "action": "buy", "qty": "1.402926", "price": "87068.01", "type": "Market", "marketPosition": "long", "prevMarketPosition": "short", "marketPositionSize": "0.700223", "prevMarketPositionSize": "0.702703", "signalToken": "manual_trade", "timestamp": "2025-12-17T13:30:01Z", "comment": "Long", "message": "", "exchange_name": "hydra"}'
+

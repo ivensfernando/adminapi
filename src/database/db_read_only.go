@@ -2,7 +2,6 @@ package database
 
 import (
 	"fmt"
-	"strategyexecutor/src/externalmodel"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -44,28 +43,29 @@ func InitReadOnlyDB() error {
 	if err := sqlDB.Ping(); err != nil {
 		return fmt.Errorf("failed to ping ReadOnlyDB: %w", err)
 	}
-
-	// ✅ Log current database and schema
-	var dbName, schema string
-	if err := db.
-		Raw("SELECT current_database(), current_schema()").
-		Row().
-		Scan(&dbName, &schema); err != nil {
-		return fmt.Errorf("failed to query current db/schema on ReadOnlyDB: %w", err)
-	}
-
-	logrus.WithFields(map[string]interface{}{"dbName": dbName, "schema": schema}).Info("[ReadOnlyDB] connected to database=%s schema=%s")
-
-	//// ✅ Test if the table is really reachable
-	var count int64
-	if err1 := db.
-		Model(&externalmodel.TradingSignal{}).
-		Count(&count).Error; err1 != nil {
-
-		return fmt.Errorf("failed to access trade_tradingsignal: %w", err1)
-	}
-
-	logrus.WithFields(map[string]interface{}{"count": count}).Info("[ReadOnlyDB] trade_tradingsignal reachable, total rows: %d")
+	//
+	//// ✅ Log current database and schema
+	//var dbName, schema string
+	//if err := db.
+	//	Raw("SELECT current_database(), current_schema()").
+	//	Row().
+	//	Scan(&dbName, &schema); err != nil {
+	//	return fmt.Errorf("failed to query current db/schema on ReadOnlyDB: %w", err)
+	//}
+	//
+	//logrus.WithFields(map[string]interface{}{"dbName": dbName, "schema": schema}).
+	//	Info("[ReadOnlyDB] connected to database")
+	//
+	////// ✅ Test if the table is really reachable
+	//var count int64
+	//if err1 := db.
+	//	Model(&externalmodel.TradingSignal{}).
+	//	Count(&count).Error; err1 != nil {
+	//
+	//	return fmt.Errorf("failed to access trade_tradingsignal: %w", err1)
+	//}
+	//
+	//logrus.WithFields(map[string]interface{}{"count": count}).Info("[ReadOnlyDB] trade_tradingsignal reachable")
 
 	ReadOnlyDB = db
 

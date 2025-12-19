@@ -14,17 +14,6 @@ import (
 	logger "github.com/sirupsen/logrus"
 )
 
-var (
-	newPhemexClient             = connectors.NewClient
-	newGooeyClient              = connectors.NewGooeyClient
-	newKrakenFuturesClient      = connectors.NewKrakenFuturesClient
-	newKucoinConnector          = connectors.NewKucoinConnector
-	orderControllerPhemex       = controller.OrderController
-	orderControllerHydra        = controller.OrderControllerHydra
-	orderControllerKrakenFuture = controller.OrderControllerKrakenFutures
-	orderControllerKucoin       = controller.OrderControllerKucoin
-)
-
 func StartLoop(ctx context.Context) error {
 	config := GetConfig()
 
@@ -70,19 +59,6 @@ func StartLoop(ctx context.Context) error {
 		return err
 	}
 
-	var apiPassphrase string
-	if userExchange.APIPassphraseHash != "" {
-		apiPassphrase, err = security.DecryptString(userExchange.APIPassphraseHash)
-		if err != nil {
-			logger.WithError(err).Error("Failed to decrypt API Passphrase")
-			return err
-		}
-	}
-
-	if config.TargetExchange == "kucoin" && apiPassphrase == "" {
-		return errors.New("api passphrase not set for kucoin")
-	}
-
 	apiKey, err := security.DecryptString(userExchange.APIKeyHash)
 	if err != nil {
 		logger.WithError(err).Error("Failed to decrypt API Key")
@@ -122,7 +98,7 @@ func StartLoop(ctx context.Context) error {
 				return errors.New("trade window is not allowed")
 			}
 
-			err = runController(ctx, apiKey, apiSecret, apiPassphrase, user, percent, exchange)
+			err = runController(ctx, apiKey, apiSecret, user, percent, exchange)
 			if err != nil {
 				logger.WithError(err).Error("OrderController failed, will exit here")
 				return err
@@ -144,7 +120,7 @@ func getUserRunOnServerAndPercent(ctx context.Context, err error, userExchangeRe
 	return run, percent, nil
 }
 
-func runController(ctx context.Context, apiKey, apiSecret, apiPassphrase string, user *model.User, percent int, exchange *model.Exchange) error {
+func runController(ctx context.Context, apiKey, apiSecret string, user *model.User, percent int, exchange *model.Exchange) error {
 	config := GetConfig()
 	baseURL := config.BaseURL
 	targetExchange := config.TargetExchange
@@ -153,38 +129,30 @@ func runController(ctx context.Context, apiKey, apiSecret, apiPassphrase string,
 	// TODO: this should be an interface and the exchange specific implementation should be injected
 
 	if targetExchange == "phemex" {
-		phemexClient := newPhemexClient(apiKey, apiSecret, baseURL)
-		err := orderControllerPhemex(ctx, phemexClient, user, percent, exchange.ID, targetSymbol, targetExchange)
+		phemexClient := connectors.NewClient(apiKey, apiSecret, baseURL)
+		err := controller.OrderController(ctx, phemexClient, user, percent, exchange.ID, targetSymbol, targetExchange)
 		if err != nil {
 			logger.WithError(err).Error("OrderController returned an error")
 			return err
 		}
 	} else if targetExchange == "hydra" {
-		c, err := newGooeyClient(apiKey, apiSecret)
+		c, err := connectors.NewGooeyClient(apiKey, apiSecret)
 		if err != nil {
 			logger.WithError(err).Error("OrderController failed to start NewGooeyClient")
 			return err
 		}
-		err = orderControllerHydra(ctx, c, user, exchange.ID, targetSymbol, targetExchange)
+		err = controller.OrderControllerHydra(ctx, c, user, exchange.ID, targetSymbol, targetExchange)
 		if err != nil {
 			logger.WithError(err).Error("OrderControllerHydra returned an error")
 			return err
 		}
 
 	} else if targetExchange == "kraken" {
-		c := newKrakenFuturesClient(apiKey, apiSecret, "")
+		c := connectors.NewKrakenFuturesClient(apiKey, apiSecret, "")
 
-		err := orderControllerKrakenFuture(ctx, c, user, exchange.ID, targetSymbol, targetExchange)
+		err := controller.OrderControllerKrakenFutures(ctx, c, user, exchange.ID, targetSymbol, targetExchange)
 		if err != nil {
 			logger.WithError(err).Error("OrderControllerKrakenFutures returned an error")
-			return err
-		}
-	} else if targetExchange == "kucoin" {
-		c := newKucoinConnector(apiKey, apiSecret, apiPassphrase, "")
-
-		err := orderControllerKucoin(ctx, c, user, percent, exchange.ID, targetSymbol, targetExchange)
-		if err != nil {
-			logger.WithError(err).Error("OrderControllerKucoin returned an error")
 			return err
 		}
 	} else {

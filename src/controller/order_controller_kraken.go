@@ -68,7 +68,7 @@ func OrderControllerKrakenFutures(
 	// ------------------------------------------------------------------
 	// 2) Check if we already processed this signal
 	// ------------------------------------------------------------------
-	existingOrder, err := orderRepo.FindByExternalIDAndUserID(ctx, user.ID, signal.ID)
+	existingOrder, err := orderRepo.FindByExternalIDAndUserID(ctx, user.ID, signal.ID, model.OrderDirectionEntry)
 	if err != nil {
 		logger.WithError(err).Error("kraken - failed to search for existing order")
 		Capture(
