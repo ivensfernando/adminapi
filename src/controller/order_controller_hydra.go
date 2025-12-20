@@ -34,6 +34,7 @@ func OrderControllerHydra(
 	tradingSignalRepo := repository.NewTradingSignalRepository()
 	exceptionRepo := repository.NewExceptionRepository()
 	orderRepo := repository.NewOrderRepository()
+	userExchangeRep := repository.NewUserExchangeRepository()
 
 	// ------------------------------------------------------------------
 	// 1) Fetch the latest TradingSignal (from read-only DB)
@@ -118,9 +119,12 @@ func OrderControllerHydra(
 		Status:     model.OrderExecutionStatusPending,
 		OrderDir:   model.OrderDirectionEntry,
 	}
-	if err := orderRepo.CreateWithAutoLog(ctx, newOrder); err != nil {
-		logger.WithError(err).Error("hydra - failed to create order with auto log")
-		return err
+
+	if session != risk.SessionNoTrade {
+		if err := orderRepo.CreateWithAutoLog(ctx, newOrder); err != nil {
+			logger.WithError(err).Error("hydra - failed to create order with auto log")
+			return err
+		}
 	}
 
 	// 2. Login
@@ -190,6 +194,18 @@ func OrderControllerHydra(
 	if err := c.CloseAllOpenFromTradeJournal(ctx, start, end); err != nil {
 		//return fmt.Errorf("CloseAllOpenFromTradeJournal error: %v", err)
 		logger.Warnf("hydra - CloseAllOpenFromTradeJournal error: %v", err)
+	}
+
+	if session == risk.SessionNoTrade {
+		logger.Warn(risk.SessionNoTrade + " - risk off mode")
+		err := userExchangeRep.MarkNoTradeWindowOrdersClosed(ctx, user.ID, exchangeID)
+		if err != nil {
+			logger.WithError(err).
+				WithField("symbol", newOrder.Symbol).
+				Error("failed to mark risk off orders closed")
+			return err
+		}
+		return nil
 	}
 
 	if signal.Price == nil {

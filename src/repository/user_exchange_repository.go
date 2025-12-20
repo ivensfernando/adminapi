@@ -55,6 +55,28 @@ func (r *GormUserExchangeRepository) GetByUserAndExchange(
 	return &ue, nil
 }
 
+// MarkNoTradeWindowOrdersClosed sets no_trade_window_orders_closed = true
+// for the given userID + exchangeID.
+func (r *GormUserExchangeRepository) MarkNoTradeWindowOrdersClosed(
+	ctx context.Context,
+	userID uint,
+	exchangeID uint,
+) error {
+	res := r.db.WithContext(ctx).
+		Model(&model.UserExchange{}).
+		Where("user_id = ? AND exchange_id = ?", userID, exchangeID).
+		Update("no_trade_window_orders_closed", true)
+
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
 // GetUserRunOnServerAndPercent returns only the fields needed for runtime checks.
 
 // Update updates an existing UserExchange using its primary key (ID).

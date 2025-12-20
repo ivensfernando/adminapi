@@ -102,7 +102,13 @@ func StartLoop(ctx context.Context) error {
 
 			if session == risk.SessionNoTrade {
 				logger.Warn(risk.SessionNoTrade + " - risk off mode")
-				return nil
+
+				if userExchange.NoTradeWindowOrdersClosed {
+					logger.Warn("no trade window orders already closed, short circuiting")
+					return nil
+				} else {
+					logger.Warn("no trade window orders not yet closed, will continue with the loop")
+				}
 			}
 
 			// check if news window -> risk off mode

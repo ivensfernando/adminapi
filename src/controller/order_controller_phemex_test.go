@@ -1,9 +1,11 @@
 package controller
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -237,7 +239,18 @@ func buildPhemexTestClient(t *testing.T, cfg serverConfig) *connectors.Client {
 			}
 			_ = json.NewEncoder(w).Encode(connectors.APIResponse{Code: 0, Data: mustJSON(connectors.GAccountPositions{Positions: convertPositions(positions)})})
 		case "/g-orders":
+			bodyBytes, _ := io.ReadAll(r.Body)
+			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
 			orderCalls++
+			if cfg.closeOrderError {
+				var payload map[string]interface{}
+				_ = json.Unmarshal(bodyBytes, &payload)
+				if reduceOnly, ok := payload["reduceOnly"].(bool); ok && reduceOnly {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+			}
 			if orderCalls == 1 && cfg.closeOrderError {
 				w.WriteHeader(http.StatusInternalServerError)
 				return

@@ -43,6 +43,7 @@ func OrderControllerKrakenFutures(
 	tradingSignalRepo := repository.NewTradingSignalRepository()
 	exceptionRepo := repository.NewExceptionRepository()
 	orderRepo := repository.NewOrderRepository()
+	userExchangeRep := repository.NewUserExchangeRepository()
 
 	//orderSizePercent := userExchange.OrderSizePercent
 
@@ -110,6 +111,10 @@ func OrderControllerKrakenFutures(
 		cfg,
 	)
 
+	if session == risk.SessionNoTrade {
+		logger.Warn(risk.SessionNoTrade + " - risk off mode")
+	}
+
 	logger.
 		WithField("session", session).
 		WithField("finalSize", finalSize).
@@ -127,9 +132,12 @@ func OrderControllerKrakenFutures(
 		Status:     model.OrderExecutionStatusPending,
 		OrderDir:   model.OrderDirectionEntry,
 	}
-	if err := orderRepo.CreateWithAutoLog(ctx, newOrder); err != nil {
-		logger.WithError(err).Error("kraken - failed to create order with auto log")
-		return err
+
+	if session != risk.SessionNoTrade {
+		if err := orderRepo.CreateWithAutoLog(ctx, newOrder); err != nil {
+			logger.WithError(err).Error("kraken - failed to create order with auto log")
+			return err
+		}
 	}
 
 	fail := func(msg string, e error) error {
@@ -163,6 +171,17 @@ func OrderControllerKrakenFutures(
 		return fail("expected no open position after CloseAllPositions", err)
 	}
 
+	if session == risk.SessionNoTrade {
+		logger.Warn(risk.SessionNoTrade + " - risk off mode")
+		err := userExchangeRep.MarkNoTradeWindowOrdersClosed(ctx, user.ID, exchangeID)
+		if err != nil {
+			logger.WithError(err).
+				WithField("symbol", newOrder.Symbol).
+				Error("failed to mark risk off orders closed")
+			return err
+		}
+		return nil
+	}
 	// ------------------------------------------------------------------
 	// 6) Place market order
 	// ------------------------------------------------------------------

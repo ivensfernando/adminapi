@@ -21,14 +21,14 @@ type UserExchange struct {
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
 
-	WeekendHolidayMultiplier decimal.Decimal `json:"WeekendHolidayMultiplier"`
-	DeadZoneMultiplier       decimal.Decimal `json:"DeadZoneMultiplier"`
-	AsiaMultiplier           decimal.Decimal `json:"AsiaMultiplier"`
-	LondonMultiplier         decimal.Decimal `json:"LondonMultiplier"`
-	USMultiplier             decimal.Decimal `json:"USMultiplier"`
-	DefaultMultiplier        decimal.Decimal `json:"DefaultMultiplier"`
-
-	EnableNoTradeWindow bool `json:"EnableNoTradeWindow"`
+	WeekendHolidayMultiplier  decimal.Decimal `gorm:"column:weekend_holiday_multiplier" json:"weekend_holiday_multiplier"`
+	DeadZoneMultiplier        decimal.Decimal `gorm:"column:dead_zone_multiplier" json:"dead_zone_multiplier"`
+	AsiaMultiplier            decimal.Decimal `gorm:"column:asia_multiplier" json:"asia_multiplier"`
+	LondonMultiplier          decimal.Decimal `gorm:"column:london_multiplier" json:"london_multiplier"`
+	USMultiplier              decimal.Decimal `gorm:"column:us_multiplier" json:"us_multiplier"`
+	DefaultMultiplier         decimal.Decimal `gorm:"column:default_multiplier" json:"default_multiplier"`
+	EnableNoTradeWindow       bool            `gorm:"column:enable_no_trade_window" json:"enable_no_trade_window"`
+	NoTradeWindowOrdersClosed bool            `gorm:"column:no_trade_window_orders_closed" json:"no_trade_window_orders_closed"`
 
 	Exchange *Exchange `gorm:"constraint:OnDelete:CASCADE" json:"exchange"`
 }

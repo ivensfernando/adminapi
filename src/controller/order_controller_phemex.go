@@ -84,11 +84,12 @@ func OrderController(
 	logger.Debugf("OrderController INITIALIZED ")
 	logger.Info("starting order controller flow")
 
-	tradingSignalRepo := newTradingSignalRepo()
-	phemexRepo := newPhemexOrderRepo()
-	exceptionRepo := newExceptionRepo()
-	orderRepo := newOrderRepo()
-	ohlcvRepo := newOHLCVRepo()
+	tradingSignalRepo := repository.NewTradingSignalRepository()
+	phemexRepo := repository.NewPhemexOrderRepository()
+	exceptionRepo := repository.NewExceptionRepository()
+	orderRepo := repository.NewOrderRepository()
+	ohlcvRepo := repository.NewOHLCVRepositoryRepository()
+	userExchangeRep := repository.NewUserExchangeRepository()
 
 	orderSizePercent := userExchange.OrderSizePercent
 
@@ -225,6 +226,10 @@ func OrderController(
 		cfg,
 	)
 
+	if session == risk.SessionNoTrade {
+		logger.Warn(risk.SessionNoTrade + " - risk off mode")
+	}
+
 	logger.
 		WithField("session", session).
 		WithField("baseSize", value).
@@ -239,8 +244,7 @@ func OrderController(
 			WithField("baseSize", value).
 			WithField("finalSize", finalSize).
 			WithField("Symbol", symbol).
-			Warn("risk sizing - unable to place order due to risk settings")
-		return nil
+			Warn("risk sizing - finalSize is zero")
 	}
 
 	logger.
@@ -266,9 +270,11 @@ func OrderController(
 		OrderDir:   model.OrderDirectionEntry,
 	}
 
-	if err := orderRepo.CreateWithAutoLog(ctx, newOrder); err != nil {
-		logger.WithError(err).Error("failed to create order with auto log")
-		return err
+	if session != risk.SessionNoTrade {
+		if err := orderRepo.CreateWithAutoLog(ctx, newOrder); err != nil {
+			logger.WithError(err).Error("failed to create order with auto log")
+			return err
+		}
 	}
 
 	logger.WithField("order_id", newOrder.ID).Info("new order created")
@@ -294,6 +300,18 @@ func OrderController(
 
 	logger.WithField("symbol", newOrder.Symbol).
 		Info("all previous positions closed")
+
+	if session == risk.SessionNoTrade {
+		logger.Warn(risk.SessionNoTrade + " - risk off mode")
+		err := userExchangeRep.MarkNoTradeWindowOrdersClosed(ctx, user.ID, exchangeID)
+		if err != nil {
+			logger.WithError(err).
+				WithField("symbol", newOrder.Symbol).
+				Error("failed to mark risk off orders closed")
+			return err
+		}
+		return nil
+	}
 
 	// ------------------------------------------------------------------
 	// 5) Place new Market Order on Phemex
@@ -499,9 +517,8 @@ func closeAllPositions(
 	symbol string,
 ) error {
 
-	phemexRepo := repository.NewPhemexOrderRepository()
-	exceptionRepo := repository.NewExceptionRepository()
-	orderRepo := repository.NewOrderRepository()
+	exceptionRepo := newExceptionRepo()
+	orderRepo := newOrderRepo()
 
 	logger.WithFields(map[string]interface{}{
 		"symbol": symbol,
@@ -607,38 +624,8 @@ func closeAllPositions(
 				"msg":    resp.Msg,
 			}).Error("Phemex returned non-zero code")
 
-			_ = orderRepo.UpdateStatusWithAutoLog(
-				ctx,
-				exitOrder.ID,
-				model.OrderExecutionStatusCanceledError,
-				"phemex returned non-zero code while placing order",
-			)
-
 			return fmt.Errorf("phemex error %d: %s", resp.Code, resp.Msg)
 		} else {
-			if err := orderRepo.UpdateStatusWithAutoLog(
-				ctx,
-				exitOrder.ID,
-				model.OrderExecutionStatusFilled,
-				"order executed successfully on phemex",
-			); err != nil {
-				logger.WithError(err).Error("failed to update order final status")
-				Capture(
-					ctx,
-					exceptionRepo,
-					"OrderController closeAllPositions",
-					"controller",
-					"orderRepo.UpdateStatusWithAutoLog",
-					"error",
-					err,
-					map[string]interface{}{
-						"symbol": exitOrder.Symbol,
-						"side":   exitOrder.Side,
-						"qty":    quantity,
-					},
-				)
-				return err
-			}
 		}
 
 		var payload model.PhemexOrderResponse
@@ -651,7 +638,7 @@ func closeAllPositions(
 		}
 
 		// Map API payload -> DB model (versão safe)
-		ord, err := mapper.MapPhemexResponseToModel(&payload, exitOrder.ID)
+		_, err = mapper.MapPhemexResponseToModel(&payload, exitOrder.ID)
 		if err != nil {
 			logger.WithError(err).Error("closeAllPositions failed to map phemex response to model")
 
@@ -670,25 +657,10 @@ func closeAllPositions(
 		}
 
 		// Persist Phemex order in DB
-		if err := phemexRepo.Create(ctx, ord); err != nil {
-			logger.WithError(err).Error("closeAllPositions failed to persist phemex order")
-
-			Capture(
-				ctx,
-				exceptionRepo,
-				"OrderController closeAllPositions",
-				"controller",
-				"phemexRepo.Create",
-				"error",
-				err,
-				map[string]interface{}{
-					"symbol": p.Symbol,
-					"side":   p.Side,
-				},
-			)
-
-			return err
-		}
+		logger.WithFields(map[string]interface{}{
+			"symbol": p.Symbol,
+			"side":   p.Side,
+		}).Debug("skipping persistence for exit order")
 
 	}
 
